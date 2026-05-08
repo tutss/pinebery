@@ -1,0 +1,15 @@
+node_modules
+dist
+.vite
+coverage
+test-results
+playwright-report
+.DS_Store
+*.log
+.claude/settings.local.json
+
+SPEC.md
+PANELS-SPEC.md
+SETTINGS-SPEC.md
+design/
+CLAUDE.md

@@ -1,0 +1,247 @@
+<script lang="ts">
+  import type { TreeNode } from '../../shared/types'
+  import {
+    activateTab,
+    closeNodeRequest,
+    toggleCollapseRequest,
+    treeStore,
+  } from '../stores/tree.svelte'
+
+  interface Props {
+    node: TreeNode
+    depth: number
+    matches?: boolean
+    groupColor?: string | null
+    isActive?: boolean
+    onDragStart?: (event: DragEvent, nodeId: string) => void
+    onDragEnd?: (event: DragEvent) => void
+  }
+
+  let {
+    node,
+    depth,
+    matches = true,
+    groupColor = null,
+    isActive = false,
+    onDragStart,
+    onDragEnd,
+  }: Props = $props()
+
+  const accentColor = $derived(groupColor ?? 'transparent')
+  const hasChildren = $derived(node.childIds.length > 0)
+  const chevronLabel = $derived(node.collapsed ? 'expand' : 'collapse')
+
+  function handleRowClick() {
+    activateTab(node.id)
+  }
+
+  function handleClose(event: MouseEvent) {
+    event.stopPropagation()
+    const defaultMode = treeStore.state?.settings.defaultCloseBehavior ?? 'promote'
+    const inverted = defaultMode === 'promote' ? 'subtree' : 'promote'
+    const mode = event.shiftKey ? inverted : defaultMode
+    closeNodeRequest(node.id, mode)
+  }
+
+  function handleToggleCollapse(event: MouseEvent) {
+    event.stopPropagation()
+    toggleCollapseRequest(node.id)
+  }
+
+  function handleDragStart(event: DragEvent) {
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/pinebery-node', node.id)
+    }
+    onDragStart?.(event, node.id)
+  }
+
+  function handleDragEnd(event: DragEvent) {
+    onDragEnd?.(event)
+  }
+</script>
+
+<div
+  class="row"
+  class:dimmed={!matches}
+  class:grouped={groupColor !== null}
+  class:active={isActive}
+  style="--depth: {depth}; border-left-color: {accentColor}"
+  draggable="true"
+  ondragstart={handleDragStart}
+  ondragend={handleDragEnd}
+  role="button"
+  tabindex="0"
+  onclick={handleRowClick}
+  onkeydown={(event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleRowClick()
+    }
+  }}
+  title={node.url}
+>
+  {#if hasChildren}
+    <button
+      type="button"
+      class="chevron"
+      class:collapsed={node.collapsed}
+      onclick={handleToggleCollapse}
+      aria-label={chevronLabel}
+      tabindex="-1"
+    >
+      ▸
+    </button>
+  {:else}
+    <span class="chevron-spacer" aria-hidden="true"></span>
+  {/if}
+
+  {#if node.favIconUrl}
+    <img class="favicon" src={node.favIconUrl} alt="" />
+  {:else}
+    <span class="favicon placeholder" aria-hidden="true"></span>
+  {/if}
+
+  <span class="title">{node.title || node.url || 'Loading...'}</span>
+
+  {#if node.audible}
+    <span class="audio-indicator" aria-label="playing audio">♪</span>
+  {/if}
+
+  <button
+    type="button"
+    class="close"
+    onclick={handleClose}
+    aria-label="close tab (shift for subtree)"
+    tabindex="-1"
+  >
+    ×
+  </button>
+</div>
+
+<style>
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: var(--row-padding-v) 8px;
+    padding-left: calc(8px + var(--depth, 0) * var(--indent-px));
+    border: none;
+    border-left: 3px solid transparent;
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 0 4px 4px 0;
+    box-sizing: border-box;
+    user-select: none;
+  }
+
+
+  .row:hover {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+
+  .row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .row.dimmed {
+    opacity: 0.45;
+  }
+
+  .row.active {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+
+  .row.active .title {
+    font-weight: 600;
+  }
+
+  .row.active:hover {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+  }
+
+  .chevron,
+  .chevron-spacer {
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .chevron {
+    border: none;
+    background: transparent;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0;
+    border-radius: 2px;
+    transform: rotate(90deg);
+    transition: transform 0.1s ease;
+  }
+
+  .chevron.collapsed {
+    transform: rotate(0deg);
+  }
+
+  .chevron:hover {
+    color: var(--fg);
+  }
+
+  .favicon {
+    width: var(--favicon-size);
+    height: var(--favicon-size);
+    flex-shrink: 0;
+    border-radius: 2px;
+  }
+
+  .favicon.placeholder {
+    background: color-mix(in srgb, var(--fg) 15%, transparent);
+  }
+
+  .title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--row-font-size);
+  }
+
+  .audio-indicator {
+    flex-shrink: 0;
+    color: var(--accent);
+    font-size: 12px;
+  }
+
+  .close {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    border-radius: 3px;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+
+  .row:hover .close {
+    opacity: 1;
+  }
+
+  .close:hover {
+    background: color-mix(in srgb, var(--fg) 15%, transparent);
+    color: var(--fg);
+  }
+</style>
