@@ -7,6 +7,9 @@ playwright-report
 .DS_Store
 *.log
 .claude/settings.local.json
+pinebery-*.zip
+releases/*.zip
+scripts/
 
 SPEC.md
 PANELS-SPEC.md
