@@ -11,8 +11,6 @@ pinebery-*.zip
 releases/*.zip
 scripts/
 
-SPEC.md
-PANELS-SPEC.md
-SETTINGS-SPEC.md
+SPEC/
 design/
 CLAUDE.md
