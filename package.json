@@ -1,6 +1,6 @@
 {
   "name": "pinebery",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Tree-style vertical tabs in Chrome's side panel",

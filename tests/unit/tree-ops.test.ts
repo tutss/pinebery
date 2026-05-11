@@ -24,6 +24,7 @@ import {
   reorderPanels,
   replaceTabId,
   findNodeByTabId,
+  setCustomTitle,
 } from '../../src/background/tree-ops'
 
 const DEFAULT_WINDOW_ID = 1
@@ -649,5 +650,45 @@ describe('replaceTabId', () => {
     const a1Node = getNode(result.state, 'a1')!
     expect(a1Node.childIds).toEqual(['a1x'])
     expect(a1Node.parentId).toBe('a')
+  })
+})
+
+describe('setCustomTitle', () => {
+  it('assigns a trimmed custom title on the target node', () => {
+    const state = buildBasicTree()
+    const next = setCustomTitle(state, 'a1', '  Renamed  ')
+    expect(getNode(next, 'a1')?.customTitle).toBe('Renamed')
+  })
+
+  it('does not mutate the input state', () => {
+    const state = buildBasicTree()
+    setCustomTitle(state, 'a1', 'Renamed')
+    expect(getNode(state, 'a1')?.customTitle).toBeUndefined()
+  })
+
+  it('clears the custom title when given null', () => {
+    let state = buildBasicTree()
+    state = setCustomTitle(state, 'a1', 'Renamed')
+    state = setCustomTitle(state, 'a1', null)
+    expect(getNode(state, 'a1')?.customTitle).toBeUndefined()
+  })
+
+  it('clears the custom title when given an empty string', () => {
+    let state = buildBasicTree()
+    state = setCustomTitle(state, 'a1', 'Renamed')
+    state = setCustomTitle(state, 'a1', '   ')
+    expect(getNode(state, 'a1')?.customTitle).toBeUndefined()
+  })
+
+  it('returns the same reference when the node does not exist', () => {
+    const state = buildBasicTree()
+    const next = setCustomTitle(state, 'missing-node', 'Renamed')
+    expect(next).toBe(state)
+  })
+
+  it('leaves the original title untouched', () => {
+    const state = buildBasicTree()
+    const next = setCustomTitle(state, 'a1', 'Renamed')
+    expect(getNode(next, 'a1')?.title).toBe('title-a1')
   })
 })

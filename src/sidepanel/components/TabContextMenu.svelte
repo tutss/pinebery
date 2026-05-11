@@ -1,19 +1,31 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import type { NodeId, Panel } from '../../shared/types'
-  import { moveToPanelRequest, togglePinRequest } from '../stores/tree.svelte'
+  import { moveToPanelRequest, renameTabRequest, togglePinRequest } from '../stores/tree.svelte'
 
   interface Props {
     nodeId: NodeId
     nodePanelId: string
     nodePinned: boolean
+    hasCustomTitle: boolean
     panels: Panel[]
     x: number
     y: number
+    onRename: () => void
     onClose: () => void
   }
 
-  const { nodeId, nodePanelId, nodePinned, panels, x, y, onClose }: Props = $props()
+  const {
+    nodeId,
+    nodePanelId,
+    nodePinned,
+    hasCustomTitle,
+    panels,
+    x,
+    y,
+    onRename,
+    onClose,
+  }: Props = $props()
 
   let menuEl: HTMLDivElement | null = $state(null)
 
@@ -27,6 +39,16 @@
 
   function handleTogglePin() {
     togglePinRequest(nodeId)
+    onClose()
+  }
+
+  function handleRename() {
+    onRename()
+    onClose()
+  }
+
+  function handleResetName() {
+    renameTabRequest(nodeId, null)
     onClose()
   }
 
@@ -57,6 +79,17 @@
   role="menu"
   tabindex="-1"
 >
+  <button type="button" class="menu-item" role="menuitem" onclick={handleRename}>
+    <span class="menu-icon">✎</span>
+    Rename
+  </button>
+  {#if hasCustomTitle}
+    <button type="button" class="menu-item" role="menuitem" onclick={handleResetName}>
+      <span class="menu-icon">↺</span>
+      Reset name
+    </button>
+  {/if}
+  <div class="separator"></div>
   <button type="button" class="menu-item" role="menuitem" onclick={handleTogglePin}>
     <span class="menu-icon">{nodePinned ? '📍' : '📌'}</span>
     {nodePinned ? 'Unpin tab' : 'Pin tab'}

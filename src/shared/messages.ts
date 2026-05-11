@@ -22,6 +22,7 @@ export const MSG_REORDER_PANELS = 'pinebery/reorder-panels' as const
 export const MSG_MOVE_TO_PANEL = 'pinebery/move-to-panel' as const
 export const MSG_SET_ACTIVE_PANEL = 'pinebery/set-active-panel' as const
 export const MSG_TOGGLE_PIN = 'pinebery/toggle-pin' as const
+export const MSG_RENAME_TAB = 'pinebery/rename-tab' as const
 
 export interface TreeUpdatedMessage {
   type: typeof MSG_TREE_UPDATED
@@ -108,6 +109,12 @@ export interface TogglePinMessage {
   nodeId: NodeId
 }
 
+export interface RenameTabMessage {
+  type: typeof MSG_RENAME_TAB
+  nodeId: NodeId
+  customTitle: string | null
+}
+
 export type PineberyMessage =
   | TreeUpdatedMessage
   | RequestTreeMessage
@@ -124,3 +131,4 @@ export type PineberyMessage =
   | MoveToPanelMessage
   | SetActivePanelMessage
   | TogglePinMessage
+  | RenameTabMessage

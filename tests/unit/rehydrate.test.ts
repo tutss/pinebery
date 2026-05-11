@@ -422,3 +422,42 @@ describe('rehydrate', () => {
     expect(result.state.activePanelByWindow[99]).toBeUndefined()
   })
 })
+
+describe('rehydrate customTitle', () => {
+  it('carries customTitle forward when prior matches by tabId', () => {
+    const prior = buildPriorState(
+      [makePriorNode('p1', 100, { customTitle: 'My label' })],
+      ['p1'],
+    )
+    const tabs = [makeFakeTab({ id: 100, index: 0 })]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    expect(bucket['p1']?.customTitle).toBe('My label')
+  })
+
+  it('drops customTitle when prior matches by URL fallback only', () => {
+    const prior = buildPriorState(
+      [
+        makePriorNode('p1', 100, {
+          url: 'https://example.com/keep',
+          customTitle: 'My label',
+        }),
+      ],
+      ['p1'],
+    )
+    const tabs = [
+      makeFakeTab({ id: 999, url: 'https://example.com/keep', index: 0 }),
+    ]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    expect(bucket['p1']?.customTitle).toBeUndefined()
+  })
+
+  it('leaves customTitle unset when prior had none and match is by tabId', () => {
+    const prior = buildPriorState([makePriorNode('p1', 100)], ['p1'])
+    const tabs = [makeFakeTab({ id: 100, index: 0 })]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    expect(bucket['p1']?.customTitle).toBeUndefined()
+  })
+})

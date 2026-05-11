@@ -11,6 +11,7 @@ import {
   moveToPanel,
   reorderPanels,
   replaceTabId,
+  setCustomTitle,
 } from './tree-ops'
 import { markOwnMove } from './move-tracking'
 import type { GroupColor, Panel, TreeNode } from '../shared/types'
@@ -23,6 +24,7 @@ import {
   MSG_DELETE_PANEL,
   MSG_MOVE_NODE,
   MSG_MOVE_TO_PANEL,
+  MSG_RENAME_TAB,
   MSG_REORDER_PANELS,
   MSG_REQUEST_TREE,
   MSG_SET_ACTIVE_PANEL,
@@ -34,6 +36,7 @@ import {
   type PineberyMessage,
   type CloseNodeMessage,
   type MoveNodeMessage,
+  type RenameTabMessage,
   type ToggleCollapseMessage,
   type UpdateSettingsMessage,
   type UpdatePanelMessage,
@@ -297,6 +300,11 @@ function handleMoveToPanel(currentState: StoredState, msg: PineberyMessage): Mut
   return { state: moveToPanel(currentState, nodeId, targetPanelId, moveSubtree) }
 }
 
+function handleRenameTab(currentState: StoredState, msg: PineberyMessage): MutationResult {
+  const { nodeId, customTitle } = msg as RenameTabMessage
+  return { state: setCustomTitle(currentState, nodeId, customTitle) }
+}
+
 const mutationHandlers: Record<string, MutationHandler> = {
   [MSG_CLOSE_NODE]: handleCloseNode,
   [MSG_MOVE_NODE]: handleMoveNode,
@@ -306,6 +314,7 @@ const mutationHandlers: Record<string, MutationHandler> = {
   [MSG_DELETE_PANEL]: handleDeletePanel,
   [MSG_REORDER_PANELS]: handleReorderPanels,
   [MSG_MOVE_TO_PANEL]: handleMoveToPanel,
+  [MSG_RENAME_TAB]: handleRenameTab,
 }
 
 chrome.runtime.onMessage.addListener((message: PineberyMessage, _sender, sendResponse) => {

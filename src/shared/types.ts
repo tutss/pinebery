@@ -19,6 +19,7 @@ export interface TreeNode {
   windowId: number
   url: string
   title: string
+  customTitle?: string
   favIconUrl?: string
   parentId: NodeId | null
   childIds: NodeId[]

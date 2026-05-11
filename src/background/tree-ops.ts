@@ -351,6 +351,25 @@ export function reorderSiblings(
   return next
 }
 
+export function setCustomTitle(
+  state: StoredState,
+  nodeId: NodeId,
+  customTitle: string | null,
+): StoredState {
+  const node = getNode(state, nodeId)
+  if (!node) return state
+  const next = cloneState(state)
+  const target = next.nodesByWindow[node.windowId]?.[nodeId]
+  if (!target) return state
+  const trimmed = customTitle?.trim() ?? ''
+  if (trimmed === '') {
+    delete target.customTitle
+  } else {
+    target.customTitle = trimmed
+  }
+  return next
+}
+
 export function toggleCollapse(state: StoredState, nodeId: NodeId): StoredState {
   const node = getNodeOrThrow(state, nodeId)
   const next = structuredClone(state)

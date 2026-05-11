@@ -5,6 +5,7 @@
   import PinnedSection from './components/PinnedSection.svelte'
   import PanelStrip from './components/PanelStrip.svelte'
   import TabContextMenu from './components/TabContextMenu.svelte'
+  import TabRenamePopover from './components/TabRenamePopover.svelte'
   import DropIndicator from './components/DropIndicator.svelte'
   import {
     initializeTreeStore,
@@ -36,8 +37,14 @@
     nodeId: string
     nodePanelId: string
     nodePinned: boolean
+    hasCustomTitle: boolean
     x: number
     y: number
+  } | null>(null)
+
+  let renamePopover = $state<{
+    nodeId: string
+    anchorRect: DOMRect
   } | null>(null)
 
   function handleTabContextMenu(
@@ -45,9 +52,25 @@
     nodeId: string,
     nodePanelId: string,
     nodePinned: boolean,
+    hasCustomTitle: boolean,
   ) {
     event.preventDefault()
-    contextMenu = { nodeId, nodePanelId, nodePinned, x: event.clientX, y: event.clientY }
+    contextMenu = {
+      nodeId,
+      nodePanelId,
+      nodePinned,
+      hasCustomTitle,
+      x: event.clientX,
+      y: event.clientY,
+    }
+  }
+
+  function openRenamePopoverForNode(nodeId: string) {
+    if (!listEl) return
+    const wrapper = listEl.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)
+    const rowEl = wrapper?.querySelector<HTMLElement>('.row') ?? wrapper
+    if (!rowEl) return
+    renamePopover = { nodeId, anchorRect: rowEl.getBoundingClientRect() }
   }
 
   onMount(() => {
@@ -86,6 +109,10 @@
       event.preventDefault()
       const nextIndex = currentIndex < 0 ? 0 : Math.max(currentIndex - 1, 0)
       rows[nextIndex]?.focus()
+    } else if (event.key === 'F2' && currentIndex >= 0 && activeHost) {
+      event.preventDefault()
+      const nodeId = activeHost.parentElement?.dataset['nodeId']
+      if (nodeId) openRenamePopoverForNode(nodeId)
     } else if (
       (event.key === 'Delete' || event.key === 'Backspace') &&
       currentIndex >= 0 &&
@@ -330,7 +357,14 @@
             <div
               data-node-id={entry.nodeId}
               data-depth={entry.depth}
-              oncontextmenu={(e) => handleTabContextMenu(e, entry.nodeId, node.panelId, node.pinned)}
+              oncontextmenu={(e) =>
+                handleTabContextMenu(
+                  e,
+                  entry.nodeId,
+                  node.panelId,
+                  node.pinned,
+                  node.customTitle !== undefined,
+                )}
             >
               <TabRow
                 {node}
@@ -353,11 +387,24 @@
       nodeId={contextMenu.nodeId}
       nodePanelId={contextMenu.nodePanelId}
       nodePinned={contextMenu.nodePinned}
+      hasCustomTitle={contextMenu.hasCustomTitle}
       panels={getPanelsForCurrentWindow()}
       x={contextMenu.x}
       y={contextMenu.y}
+      onRename={() => openRenamePopoverForNode(contextMenu!.nodeId)}
       onClose={() => (contextMenu = null)}
     />
+  {/if}
+
+  {#if renamePopover}
+    {@const popoverNode = getNodeById(renamePopover.nodeId)}
+    {#if popoverNode}
+      <TabRenamePopover
+        node={popoverNode}
+        anchorRect={renamePopover.anchorRect}
+        onClose={() => (renamePopover = null)}
+      />
+    {/if}
   {/if}
 </main>
 
@@ -365,7 +412,7 @@
   main {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100%;
     box-sizing: border-box;
   }
 
@@ -375,6 +422,7 @@
     justify-content: space-between;
     padding: 8px 12px 6px 12px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
 
   header h1 {
@@ -411,6 +459,8 @@
     position: relative;
     padding: 4px 0;
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .status {

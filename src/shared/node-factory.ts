@@ -4,7 +4,7 @@ export function buildNodeFromTab(
   tab: chrome.tabs.Tab,
   nodeId: NodeId,
   panelId: PanelId,
-  overrides?: { collapsed?: boolean },
+  overrides?: { collapsed?: boolean; customTitle?: string },
 ): TreeNode {
   const node: TreeNode = {
     id: nodeId,
@@ -18,6 +18,7 @@ export function buildNodeFromTab(
     pinned: tab.pinned ?? false,
     panelId,
   }
+  if (overrides?.customTitle !== undefined) node.customTitle = overrides.customTitle
   if (tab.favIconUrl !== undefined) node.favIconUrl = tab.favIconUrl
   if (tab.groupId !== undefined && tab.groupId !== -1) node.groupId = tab.groupId
   if (tab.audible !== undefined) node.audible = tab.audible

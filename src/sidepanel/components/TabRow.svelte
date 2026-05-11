@@ -30,6 +30,10 @@
   const accentColor = $derived(groupColor ?? 'transparent')
   const hasChildren = $derived(node.childIds.length > 0)
   const chevronLabel = $derived(node.collapsed ? 'expand' : 'collapse')
+  const displayTitle = $derived(node.customTitle ?? node.title)
+  const rowTooltip = $derived(
+    node.customTitle ? `${node.title} — ${node.url}` : node.url,
+  )
 
   function handleRowClick() {
     activateTab(node.id)
@@ -79,7 +83,7 @@
       handleRowClick()
     }
   }}
-  title={node.url}
+  title={rowTooltip}
 >
   {#if hasChildren}
     <button
@@ -102,7 +106,7 @@
     <span class="favicon placeholder" aria-hidden="true"></span>
   {/if}
 
-  <span class="title">{node.title || node.url || 'Loading...'}</span>
+  <span class="title">{displayTitle || node.url || 'Loading...'}</span>
 
   {#if node.audible}
     <span class="audio-indicator" aria-label="playing audio">♪</span>

@@ -112,4 +112,29 @@ describe('filterRenderEntries', () => {
     const matched = filtered.filter((f) => f.matches).map((f) => f.entry.nodeId)
     expect(matched).toEqual(['react'])
   })
+
+  it('matches by customTitle substring', () => {
+    const state = buildState()
+    const bucket = state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    bucket['news']!.customTitle = 'Morning briefing'
+    const entries = flattenForRender(state, DEFAULT_WINDOW_ID, DEFAULT_PANEL_ID)
+    const filtered = filterRenderEntries(entries, state, DEFAULT_WINDOW_ID, 'morning')
+    const matched = filtered.filter((f) => f.matches).map((f) => f.entry.nodeId)
+    expect(matched).toEqual(['news'])
+  })
+
+  it('matches by either customTitle or original title', () => {
+    const state = buildState()
+    const bucket = state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    bucket['react']!.customTitle = 'Frontend stack'
+    const entries = flattenForRender(state, DEFAULT_WINDOW_ID, DEFAULT_PANEL_ID)
+    const matchedByCustom = filterRenderEntries(entries, state, DEFAULT_WINDOW_ID, 'frontend')
+      .filter((f) => f.matches)
+      .map((f) => f.entry.nodeId)
+    const matchedByOriginal = filterRenderEntries(entries, state, DEFAULT_WINDOW_ID, 'react docs')
+      .filter((f) => f.matches)
+      .map((f) => f.entry.nodeId)
+    expect(matchedByCustom).toEqual(['react'])
+    expect(matchedByOriginal).toEqual(['react'])
+  })
 })

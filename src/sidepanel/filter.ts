@@ -22,7 +22,8 @@ export function filterRenderEntries(
   for (const node of Object.values(bucket)) {
     if (
       node.title.toLowerCase().includes(query) ||
-      node.url.toLowerCase().includes(query)
+      node.url.toLowerCase().includes(query) ||
+      (node.customTitle?.toLowerCase().includes(query) ?? false)
     ) {
       directMatch.add(node.id)
     }

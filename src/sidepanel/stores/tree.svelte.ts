@@ -18,6 +18,7 @@ import {
   MSG_DELETE_PANEL,
   MSG_MOVE_NODE,
   MSG_MOVE_TO_PANEL,
+  MSG_RENAME_TAB,
   MSG_REORDER_PANELS,
   MSG_REQUEST_TREE,
   MSG_SET_ACTIVE_PANEL,
@@ -149,6 +150,10 @@ export function toggleCollapseRequest(nodeId: NodeId): void {
 
 export function togglePinRequest(nodeId: NodeId): void {
   sendMsg({ type: MSG_TOGGLE_PIN, nodeId })
+}
+
+export function renameTabRequest(nodeId: NodeId, customTitle: string | null): void {
+  sendMsg({ type: MSG_RENAME_TAB, nodeId, customTitle })
 }
 
 export function updateSettingsRequest(patch: Partial<Settings>): void {
