@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.0 - 2026-05-11
+
+### Other
+
+- move dev specs to SPEC/ and ignore the folder ([f1ab7d9](https://github.com/tutss/pinebery/commit/f1ab7d9ff2101482d5b7610d16ce3a2509620aef))
+- Add tab rename feature, scroll fix, and v1.0.0 release prep ([3046b2f](https://github.com/tutss/pinebery/commit/3046b2f7810dd5cf3ede4ff2d79d4112ac9c5376))
+- add release tooling (/release, pre-push hook, changelog) ([b13368b](https://github.com/tutss/pinebery/commit/b13368b1fbe3d92f24dc33f915475ebc31e4e0b5))
+
 ## v1.0.0 - 2026-05-08
 
 Initial public release.
