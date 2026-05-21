@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.1 - 2026-05-21
+
+### Bug fixes
+
+- use chrome://favicon2/ fallback and add error recovery for tab favicons ([d956838](https://github.com/tutss/pinebery/commit/d956838794a3cc4c6ac4b62ca7d8e1f042efad1a))
+
 ## v1.1.0 - 2026-05-11
 
 ### Other
