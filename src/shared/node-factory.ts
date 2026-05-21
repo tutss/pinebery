@@ -19,7 +19,7 @@ export function buildNodeFromTab(
     panelId,
   }
   if (overrides?.customTitle !== undefined) node.customTitle = overrides.customTitle
-  if (tab.favIconUrl !== undefined) node.favIconUrl = tab.favIconUrl
+  if (tab.favIconUrl) node.favIconUrl = tab.favIconUrl
   if (tab.groupId !== undefined && tab.groupId !== -1) node.groupId = tab.groupId
   if (tab.audible !== undefined) node.audible = tab.audible
   if (tab.mutedInfo?.muted !== undefined) node.muted = tab.mutedInfo.muted

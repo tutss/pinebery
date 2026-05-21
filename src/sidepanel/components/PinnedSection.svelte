@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TreeNode } from '../../shared/types'
   import { activateTab } from '../stores/tree.svelte'
+  import Favicon from './Favicon.svelte'
 
   interface Props {
     nodes: TreeNode[]
@@ -18,11 +19,7 @@
         title={node.title || node.url}
         onclick={() => activateTab(node.id)}
       >
-        {#if node.favIconUrl}
-          <img src={node.favIconUrl} alt="" />
-        {:else}
-          <span class="placeholder" aria-hidden="true"></span>
-        {/if}
+        <Favicon favIconUrl={node.favIconUrl} pageUrl={node.url} />
       </button>
     {/each}
   </div>
@@ -61,14 +58,13 @@
     outline-offset: -2px;
   }
 
-  .tile img,
-  .tile .placeholder {
+  .tile :global(.favicon) {
     width: 16px;
     height: 16px;
     border-radius: 2px;
   }
 
-  .tile .placeholder {
+  .tile :global(.favicon.placeholder) {
     background: color-mix(in srgb, var(--fg) 15%, transparent);
   }
 </style>

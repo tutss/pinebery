@@ -18,7 +18,12 @@ export function registerChromeListeners(): void {
     void withStateLock(() => handleTabCreated(tab))
   })
 
-  chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    log('tab-removed event', {
+      tabId,
+      windowId: removeInfo.windowId,
+      isWindowClosing: removeInfo.isWindowClosing,
+    })
     void withStateLock(() => handleTabRemoved(tabId))
   })
 
@@ -34,7 +39,24 @@ export function registerChromeListeners(): void {
     void withStateLock(() => handleTabReplaced(addedTabId, removedTabId))
   })
 
+  chrome.tabs.onAttached.addListener((tabId, attachInfo) => {
+    log('tab-attached event', {
+      tabId,
+      newWindowId: attachInfo.newWindowId,
+      newPosition: attachInfo.newPosition,
+    })
+  })
+
+  chrome.tabs.onDetached.addListener((tabId, detachInfo) => {
+    log('tab-detached event', {
+      tabId,
+      oldWindowId: detachInfo.oldWindowId,
+      oldPosition: detachInfo.oldPosition,
+    })
+  })
+
   chrome.windows.onRemoved.addListener((windowId) => {
+    log('window-removed event', { windowId })
     void withStateLock(() => handleWindowRemoved(windowId))
   })
 
@@ -93,7 +115,7 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
 
   const tabUrl = (tab.pendingUrl ?? tab.url ?? '').toLowerCase()
   const isWebLink = tabUrl.startsWith('http://') || tabUrl.startsWith('https://')
-  const isLinkOpened = hasOpener && isWebLink && !tab.active
+  const isLinkOpened = hasOpener
 
   log('tab-created signals', {
     tabId: tab.id,
@@ -124,12 +146,32 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
 
   const nextState = applyPlacement(state, effectivePlacement, tab.windowId, panelId, node, hasOpener ? opener! : null)
   await setState(nextState)
+
+  const placedNode = nextState.nodesByWindow[tab.windowId]?.[nodeId]
+  log('tab-created placed', {
+    tabId: tab.id,
+    nodeId,
+    windowId: tab.windowId,
+    panelId,
+    parentId: placedNode?.parentId ?? null,
+  })
 }
 
 async function handleTabRemoved(tabId: number): Promise<void> {
   const state = await getState()
   const node = findNodeByTabId(state, tabId)
-  if (!node) return
+  if (!node) {
+    log('tab-removed no matching node', { tabId })
+    return
+  }
+  log('tab-removed closing node', {
+    tabId,
+    nodeId: node.id,
+    windowId: node.windowId,
+    panelId: node.panelId,
+    parentId: node.parentId,
+    childCount: node.childIds.length,
+  })
   const result = closeNode(state, node.id, 'promote')
   await setState(result.state)
 }
@@ -139,6 +181,14 @@ async function handleTabUpdated(
   changeInfo: chrome.tabs.OnUpdatedInfo,
   tab: chrome.tabs.Tab,
 ): Promise<void> {
+  log('tab-updated event', {
+    tabId,
+    windowId: tab.windowId,
+    changeKeys: Object.keys(changeInfo),
+    groupId: changeInfo.groupId,
+    pinned: changeInfo.pinned,
+    status: changeInfo.status,
+  })
   const state = await getState()
   const existing = findNodeByTabId(state, tabId)
   if (!existing) return
@@ -153,8 +203,15 @@ async function handleTabUpdated(
   if (changeInfo.title !== undefined) target.title = changeInfo.title
   else if (tab.title !== undefined) target.title = tab.title
 
-  if (changeInfo.favIconUrl !== undefined) target.favIconUrl = changeInfo.favIconUrl
-  else if (tab.favIconUrl !== undefined) target.favIconUrl = tab.favIconUrl
+  if (changeInfo.favIconUrl !== undefined) {
+    if (changeInfo.favIconUrl) {
+      target.favIconUrl = changeInfo.favIconUrl
+    } else {
+      delete target.favIconUrl
+    }
+  } else if (tab.favIconUrl) {
+    target.favIconUrl = tab.favIconUrl
+  }
 
   if (changeInfo.pinned !== undefined) target.pinned = changeInfo.pinned
   if (changeInfo.audible !== undefined) target.audible = changeInfo.audible

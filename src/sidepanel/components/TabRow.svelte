@@ -6,6 +6,7 @@
     toggleCollapseRequest,
     treeStore,
   } from '../stores/tree.svelte'
+  import Favicon from './Favicon.svelte'
 
   interface Props {
     node: TreeNode
@@ -100,11 +101,7 @@
     <span class="chevron-spacer" aria-hidden="true"></span>
   {/if}
 
-  {#if node.favIconUrl}
-    <img class="favicon" src={node.favIconUrl} alt="" />
-  {:else}
-    <span class="favicon placeholder" aria-hidden="true"></span>
-  {/if}
+  <Favicon favIconUrl={node.favIconUrl} pageUrl={node.url} />
 
   <span class="title">{displayTitle || node.url || 'Loading...'}</span>
 
@@ -197,17 +194,6 @@
 
   .chevron:hover {
     color: var(--fg);
-  }
-
-  .favicon {
-    width: var(--favicon-size);
-    height: var(--favicon-size);
-    flex-shrink: 0;
-    border-radius: 2px;
-  }
-
-  .favicon.placeholder {
-    background: color-mix(in srgb, var(--fg) 15%, transparent);
   }
 
   .title {
