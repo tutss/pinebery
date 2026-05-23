@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.0 - 2026-05-23
+
+### Features
+
+- add vertical indent guides to clarify tree hierarchy ([5dc1564](https://github.com/tutss/pinebery/commit/5dc1564ce9eba700c5b0c5d538f28a3318962351))
+
 ## v1.1.1 - 2026-05-21
 
 ### Bug fixes
