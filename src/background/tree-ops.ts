@@ -225,6 +225,23 @@ function promoteChildren(
   }
 }
 
+export function promoteToRoot(state: StoredState, nodeId: NodeId): StoredState {
+  const node = getNodeOrThrow(state, nodeId)
+  if (node.parentId === null) return state
+
+  const next = cloneState(state)
+  removeFromParentList(next, nodeId)
+
+  const promoted = getNodeOrThrow(next, nodeId)
+  promoted.parentId = null
+
+  const order = getRootOrder(next, promoted.windowId, promoted.panelId)
+  order.push(nodeId)
+  setRootOrder(next, promoted.windowId, promoted.panelId, order)
+
+  return next
+}
+
 export function moveNode(
   state: StoredState,
   nodeId: NodeId,

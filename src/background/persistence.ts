@@ -253,7 +253,11 @@ export function rehydrate(
       }
     }
 
-    node.parentId = resolvedParentId
+    if (tab.pinned) {
+      node.parentId = null
+    } else {
+      node.parentId = resolvedParentId
+    }
   }
 
   log('rehydrate parent resolution', {

@@ -8,6 +8,7 @@ import {
   closeNode,
   reorderSiblings,
   replaceTabId,
+  promoteToRoot,
 } from './tree-ops'
 import { consumeOwnMove } from './move-tracking'
 import { log, warn } from '../shared/logger'
@@ -220,6 +221,12 @@ async function handleTabUpdated(
   if (changeInfo.groupId !== undefined) {
     if (changeInfo.groupId === -1) delete target.groupId
     else target.groupId = changeInfo.groupId
+  }
+
+  if (changeInfo.pinned === true && target.parentId !== null) {
+    const promoted = promoteToRoot(next, existing.id)
+    await setState(promoted)
+    return
   }
 
   await setState(next)

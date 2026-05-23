@@ -25,6 +25,7 @@ import {
   replaceTabId,
   findNodeByTabId,
   setCustomTitle,
+  promoteToRoot,
 } from '../../src/background/tree-ops'
 
 const DEFAULT_WINDOW_ID = 1
@@ -690,5 +691,22 @@ describe('setCustomTitle', () => {
     const state = buildBasicTree()
     const next = setCustomTitle(state, 'a1', 'Renamed')
     expect(getNode(next, 'a1')?.title).toBe('title-a1')
+  })
+})
+
+describe('promoteToRoot', () => {
+  it('moves a child node to root level', () => {
+    const state = buildBasicTree()
+    const next = promoteToRoot(state, 'a1x')
+    expect(getNode(next, 'a1x')?.parentId).toBeNull()
+    expect(getNode(next, 'a1')?.childIds).not.toContain('a1x')
+    const roots = next.rootOrderByWindow[DEFAULT_WINDOW_ID]![P]!
+    expect(roots).toContain('a1x')
+  })
+
+  it('returns same state when node is already a root', () => {
+    const state = buildBasicTree()
+    const next = promoteToRoot(state, 'a')
+    expect(next).toBe(state)
   })
 })

@@ -460,4 +460,32 @@ describe('rehydrate customTitle', () => {
     const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
     expect(bucket['p1']?.customTitle).toBeUndefined()
   })
+
+  it('pinned tabs stay as roots even when openerTabId would reparent them', () => {
+    const prior = buildPriorState(
+      [makePriorNode('opener', 100), makePriorNode('pinned', 200, { pinned: true })],
+      ['opener', 'pinned'],
+    )
+    const tabs = [
+      makeFakeTab({ id: 100, index: 0 }),
+      makeFakeTab({ id: 200, index: 1, pinned: true, openerTabId: 100 }),
+    ]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    expect(bucket['pinned']?.parentId).toBeNull()
+    expect(bucket['pinned']?.pinned).toBe(true)
+    expect(rootOrder(result.state)).toContain('pinned')
+  })
+
+  it('pinned tabs without prior state stay as roots despite openerTabId', () => {
+    const tabs = [
+      makeFakeTab({ id: 100, index: 0 }),
+      makeFakeTab({ id: 200, index: 1, pinned: true, openerTabId: 100 }),
+    ]
+    const result = rehydrate(tabs, null, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    const pinnedNode = Object.values(bucket).find((n) => n.tabId === 200)!
+    expect(pinnedNode.parentId).toBeNull()
+    expect(pinnedNode.pinned).toBe(true)
+  })
 })
