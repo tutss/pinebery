@@ -29,6 +29,7 @@
   }: Props = $props()
 
   const accentColor = $derived(groupColor ?? 'transparent')
+  const guideLevels = $derived(Array.from({ length: depth }, (_, level) => level))
   const hasChildren = $derived(node.childIds.length > 0)
   const chevronLabel = $derived(node.collapsed ? 'expand' : 'collapse')
   const displayTitle = $derived(node.customTitle ?? node.title)
@@ -86,6 +87,14 @@
   }}
   title={rowTooltip}
 >
+  {#each guideLevels as level (level)}
+    <span
+      class="guide"
+      style="left: calc(8px + {level} * var(--indent-px) + 7px)"
+      aria-hidden="true"
+    ></span>
+  {/each}
+
   {#if hasChildren}
     <button
       type="button"
@@ -122,6 +131,7 @@
 
 <style>
   .row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -138,6 +148,15 @@
     border-radius: 0 4px 4px 0;
     box-sizing: border-box;
     user-select: none;
+  }
+
+  .guide {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--tree-guide);
+    pointer-events: none;
   }
 
 

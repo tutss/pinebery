@@ -37,6 +37,7 @@
   --row-font-size: 13px;
   --favicon-size: 16px;
   --indent-px: 16px;
+  --tree-guide: color-mix(in srgb, var(--fg) 16%, transparent);
 }
 
 :root.density-compact {
