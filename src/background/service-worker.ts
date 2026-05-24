@@ -13,7 +13,6 @@ import {
   replaceTabId,
   setCustomTitle,
 } from './tree-ops'
-import { markOwnMove } from './move-tracking'
 import type { GroupColor, Panel, TreeNode } from '../shared/types'
 import { DEFAULT_PANEL_ID } from '../shared/types'
 import {
@@ -432,7 +431,6 @@ async function syncChromeTabOrder(state: StoredState, movedNodeId: string): Prom
 
   const chromeIndex = pinnedCount + targetIndex
   try {
-    markOwnMove(movedNode.tabId)
     await chrome.tabs.move(movedNode.tabId, { index: chromeIndex })
   } catch (error) {
     warn('chrome.tabs.move failed', error)

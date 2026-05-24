@@ -6,11 +6,9 @@ import {
   insertChild,
   insertRoot,
   closeNode,
-  reorderSiblings,
   replaceTabId,
   promoteToRoot,
 } from './tree-ops'
-import { consumeOwnMove } from './move-tracking'
 import { log, warn } from '../shared/logger'
 import { buildNodeFromTab } from '../shared/node-factory'
 
@@ -30,10 +28,6 @@ export function registerChromeListeners(): void {
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     void withStateLock(() => handleTabUpdated(tabId, changeInfo, tab))
-  })
-
-  chrome.tabs.onMoved.addListener((tabId, moveInfo) => {
-    void withStateLock(() => handleTabMoved(tabId, moveInfo))
   })
 
   chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
@@ -248,54 +242,6 @@ async function handleTabUpdated(
   }
 
   await setState(next)
-}
-
-async function handleTabMoved(
-  tabId: number,
-  moveInfo: chrome.tabs.OnMovedInfo,
-): Promise<void> {
-  if (consumeOwnMove(tabId)) return
-
-  const state = await getState()
-  const node = findNodeByTabId(state, tabId)
-  if (!node) return
-
-  const windowId = moveInfo.windowId
-  const siblings =
-    node.parentId === null
-      ? (state.rootOrderByWindow[windowId]?.[node.panelId] ?? [])
-      : (state.nodesByWindow[windowId]?.[node.parentId]?.childIds ?? [])
-
-  if (siblings.length <= 1) return
-
-  const chromeTabs = await chrome.tabs.query({ windowId })
-  const indexByTabId = new Map<number, number>()
-  for (const tab of chromeTabs) {
-    if (tab.id !== undefined) indexByTabId.set(tab.id, tab.index)
-  }
-
-  const orderedSiblingIds = [...siblings].sort((a, b) => {
-    const aTab = state.nodesByWindow[windowId]?.[a]?.tabId
-    const bTab = state.nodesByWindow[windowId]?.[b]?.tabId
-    if (aTab === undefined || bTab === undefined) return 0
-    return (indexByTabId.get(aTab) ?? 0) - (indexByTabId.get(bTab) ?? 0)
-  })
-
-  let changed = false
-  for (let i = 0; i < siblings.length; i++) {
-    if (siblings[i] !== orderedSiblingIds[i]) {
-      changed = true
-      break
-    }
-  }
-  if (!changed) return
-
-  try {
-    const next = reorderSiblings(state, node.id, orderedSiblingIds)
-    await setState(next)
-  } catch (error) {
-    warn('reorderSiblings failed on onMoved', error)
-  }
 }
 
 async function handleTabReplaced(addedTabId: number, removedTabId: number): Promise<void> {
