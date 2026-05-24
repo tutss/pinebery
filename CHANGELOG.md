@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.0 - 2026-05-24
+
+### Features
+
+- make drag-and-drop depth easier to target ([656cec1](https://github.com/tutss/pinebery/commit/656cec1a16105df03dddf3ad86f6d0b74cf0c0c9))
+
 ## v1.2.3 - 2026-05-24
 
 ### Bug fixes
