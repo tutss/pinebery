@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.2 - 2026-05-24
+
+### Bug fixes
+
+- recover tabs stranded in deleted panels on rehydrate ([d3249e1](https://github.com/tutss/pinebery/commit/d3249e138a5b27f34d7bcbc0c793839f2d131ac0))
+
 ## v1.2.1 - 2026-05-24
 
 ### Bug fixes
