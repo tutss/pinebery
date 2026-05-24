@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.1 - 2026-05-24
+
+### Bug fixes
+
+- disable tab reorder from Chrome strip moves (#2) ([1ccdb29](https://github.com/tutss/pinebery/commit/1ccdb29136b678f144ea07f7a4b98ee1f5de73fd))
+- self-heal missing tabs in handleTabUpdated (#1) ([de15bcf](https://github.com/tutss/pinebery/commit/de15bcf2a05b6eb2b3c9a24a132d9b7f717d37c4))
+- preserve custom panels across Chrome restart (#3) ([fff7cee](https://github.com/tutss/pinebery/commit/fff7ceed59e865971586241a0eb514cd574a51bb))
+- keep pinned tabs as roots during rehydration and pin events ([d040716](https://github.com/tutss/pinebery/commit/d040716e9849aba008454b8d5995e905a0dad245))
+
 ## v1.2.0 - 2026-05-23
 
 ### Features
