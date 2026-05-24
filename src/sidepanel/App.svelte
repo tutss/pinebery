@@ -20,7 +20,7 @@
   import { filterRenderEntries, type FilteredEntry } from './filter'
   import { computeDropTarget, type RowLayout } from './dnd/indent-dnd'
   import { resolveGroupColor } from './group-colors'
-  import { DEFAULT_SETTINGS, type RenderEntry, type TreeNode } from '../shared/types'
+  import { DEFAULT_SETTINGS, type NodeId, type RenderEntry, type TreeNode } from '../shared/types'
 
   const LIST_LEFT_OFFSET = 8
 
@@ -31,7 +31,10 @@
     visible: false,
     topPx: 0,
     depth: 0,
+    prospectiveParentId: null as NodeId | null,
   })
+
+  let dragDepth: number | null = $state(null)
 
   let contextMenu = $state<{
     nodeId: string
@@ -222,10 +225,12 @@
 
   function handleRowDragStart(_event: DragEvent, nodeId: string) {
     dragState.nodeId = nodeId
+    dragDepth = null
   }
 
   function handleRowDragEnd() {
     dragState.nodeId = null
+    dragDepth = null
     dropIndicator.visible = false
   }
 
@@ -254,13 +259,16 @@
       cursorY,
       cursorX,
       indentPx: indentPx,
+      ...(dragDepth !== null ? { previousDepth: dragDepth } : {}),
     })
 
     if (target) {
+      dragDepth = target.indicatorDepth
       dropIndicator = {
         visible: true,
         topPx: target.indicatorY,
         depth: target.indicatorDepth,
+        prospectiveParentId: target.newParentId,
       }
     } else {
       dropIndicator.visible = false
@@ -297,6 +305,7 @@
       cursorY,
       cursorX,
       indentPx: indentPx,
+      ...(dragDepth !== null ? { previousDepth: dragDepth } : {}),
     })
 
     if (target) {
@@ -305,6 +314,7 @@
 
     dropIndicator.visible = false
     dragState.nodeId = null
+    dragDepth = null
   }
 </script>
 
@@ -372,6 +382,8 @@
                 {matches}
                 groupColor={groupColorForNode(node)}
                 isActive={node.tabId === treeStore.activeTabId}
+                isDropParent={dropIndicator.visible &&
+                  dropIndicator.prospectiveParentId === entry.nodeId}
                 onDragStart={handleRowDragStart}
                 onDragEnd={handleRowDragEnd}
               />

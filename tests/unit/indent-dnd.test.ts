@@ -70,6 +70,7 @@ function dropAt(
   rowIndex: number,
   fraction: number,
   cursorX: number,
+  previousDepth?: number,
 ) {
   const rowLayouts = layoutFor(visibleTree)
   const cursorY = rowIndex * ROW_HEIGHT + fraction * ROW_HEIGHT
@@ -82,6 +83,7 @@ function dropAt(
     cursorY,
     cursorX,
     indentPx: INDENT_PX,
+    ...(previousDepth !== undefined ? { previousDepth } : {}),
   })
 }
 
@@ -246,5 +248,49 @@ describe('computeDropTarget', () => {
     expect(result).not.toBeNull()
     expect(result!.newParentId).toBeNull()
     expect(result!.newIndex).toBe(0)
+  })
+
+  describe('depth hysteresis', () => {
+    it('holds the previous depth on a small leftward drift inside the hold window', () => {
+      const state = buildTree()
+      const sticky = dropAt(state, 'b', 0, 0.9, 10, 1)
+      expect(sticky).not.toBeNull()
+      expect(sticky!.indicatorDepth).toBe(1)
+      expect(sticky!.newParentId).toBe('a')
+
+      const withoutHistory = dropAt(state, 'b', 0, 0.9, 10)
+      expect(withoutHistory!.indicatorDepth).toBe(0)
+      expect(withoutHistory!.newParentId).toBeNull()
+    })
+
+    it('holds depth 0 on a small rightward drift, then nests once the cursor crosses out', () => {
+      const state = buildTree()
+      const held = dropAt(state, 'b', 0, 0.9, 20, 0)
+      expect(held).not.toBeNull()
+      expect(held!.indicatorDepth).toBe(0)
+      expect(held!.newParentId).toBeNull()
+
+      const crossed = dropAt(state, 'b', 0, 0.9, 24, 0)
+      expect(crossed!.indicatorDepth).toBe(1)
+      expect(crossed!.newParentId).toBe('a')
+    })
+
+    it('recomputes from the cursor band on a large jump regardless of previous depth', () => {
+      const state = buildTree()
+      const jumpedDeep = dropAt(state, 'b', 0, 0.9, 9999, 0)
+      expect(jumpedDeep!.indicatorDepth).toBe(1)
+      expect(jumpedDeep!.newParentId).toBe('a')
+
+      const jumpedToRoot = dropAt(state, 'b', 0, 0.9, 0, 5)
+      expect(jumpedToRoot!.indicatorDepth).toBe(0)
+      expect(jumpedToRoot!.newParentId).toBeNull()
+    })
+
+    it('falls back to plain floor mapping when no previous depth is given', () => {
+      const state = buildTree()
+      const result = dropAt(state, 'b', 0, 0.9, 20)
+      expect(result!.indicatorDepth).toBe(1)
+      expect(result!.newParentId).toBe('a')
+    })
   })
 })

@@ -17,6 +17,24 @@ export interface DropTargetInput {
   cursorY: number
   cursorX: number
   indentPx: number
+  previousDepth?: number
+}
+
+const DEPTH_HOLD_FRACTION = 0.4
+
+function resolveRawDepth(
+  cursorX: number,
+  indentPx: number,
+  previousDepth: number | undefined,
+): number {
+  const bandDepth = Math.max(0, Math.floor(cursorX / indentPx))
+  if (previousDepth === undefined) return bandDepth
+
+  const holdMargin = indentPx * DEPTH_HOLD_FRACTION
+  const lowerBound = previousDepth * indentPx - holdMargin
+  const upperBound = (previousDepth + 1) * indentPx + holdMargin
+  if (cursorX >= lowerBound && cursorX < upperBound) return previousDepth
+  return bandDepth
 }
 
 export interface DropTarget {
@@ -36,6 +54,7 @@ export function computeDropTarget(input: DropTargetInput): DropTarget | null {
     cursorY,
     cursorX,
     indentPx,
+    previousDepth,
   } = input
 
   let slotIndex = 0
@@ -62,7 +81,7 @@ export function computeDropTarget(input: DropTargetInput): DropTarget | null {
   }
 
   const maxDepth = beforeRow ? beforeRow.depth + 1 : 0
-  const rawDepth = Math.max(0, Math.floor(cursorX / indentPx))
+  const rawDepth = resolveRawDepth(cursorX, indentPx, previousDepth)
   const targetDepth = Math.max(0, Math.min(rawDepth, maxDepth))
 
   let newParentId: NodeId | null = null

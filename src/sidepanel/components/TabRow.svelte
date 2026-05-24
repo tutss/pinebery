@@ -14,6 +14,7 @@
     matches?: boolean
     groupColor?: string | null
     isActive?: boolean
+    isDropParent?: boolean
     onDragStart?: (event: DragEvent, nodeId: string) => void
     onDragEnd?: (event: DragEvent) => void
   }
@@ -24,6 +25,7 @@
     matches = true,
     groupColor = null,
     isActive = false,
+    isDropParent = false,
     onDragStart,
     onDragEnd,
   }: Props = $props()
@@ -72,6 +74,7 @@
   class:dimmed={!matches}
   class:grouped={groupColor !== null}
   class:active={isActive}
+  class:drop-parent={isDropParent}
   style="--depth: {depth}; border-left-color: {accentColor}"
   draggable="true"
   ondragstart={handleDragStart}
@@ -183,6 +186,11 @@
 
   .row.active:hover {
     background: color-mix(in srgb, var(--accent) 24%, transparent);
+  }
+
+  .row.drop-parent {
+    box-shadow: inset 0 0 0 1px var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
 
   .chevron,
