@@ -104,6 +104,20 @@ function applyPlacement(
   return insertRoot(state, windowId, panelId, node)
 }
 
+async function ensureTabInTree(
+  state: StoredState,
+  tab: chrome.tabs.Tab,
+): Promise<StoredState | null> {
+  if (tab.id === undefined || tab.windowId === undefined) return null
+  if (findNodeByTabId(state, tab.id)) return null
+
+  warn('self-heal: tab not in tree, adding it', { tabId: tab.id, windowId: tab.windowId })
+  const panelId = getActivePanel(tab.windowId)
+  const nodeId = crypto.randomUUID()
+  const node = buildNodeFromTab(tab, nodeId, panelId)
+  return insertRoot(state, tab.windowId, panelId, node)
+}
+
 async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   if (tab.id === undefined || tab.windowId === undefined) return
   const state = await getState()
@@ -192,7 +206,11 @@ async function handleTabUpdated(
   })
   const state = await getState()
   const existing = findNodeByTabId(state, tabId)
-  if (!existing) return
+  if (!existing) {
+    const healed = await ensureTabInTree(state, tab)
+    if (healed) await setState(healed)
+    return
+  }
 
   const next = structuredClone(state)
   const target = next.nodesByWindow[existing.windowId]?.[existing.id]
