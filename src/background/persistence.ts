@@ -268,6 +268,67 @@ export function rehydrate(
     warn('rehydrate lost parent links', lostReasons)
   }
 
+  if (priorState) {
+    const currentWindowIds = new Set(
+      currentTabs.filter((t) => t.windowId !== undefined).map((t) => t.windowId!),
+    )
+    const votesByNew = new Map<number, Map<number, number>>()
+    for (const tab of currentTabs) {
+      if (tab.id === undefined || tab.windowId === undefined) continue
+      const prior = priorByCurrentTab.get(tab.id)
+      if (!prior || prior.windowId === tab.windowId) continue
+      if (!votesByNew.has(tab.windowId)) votesByNew.set(tab.windowId, new Map())
+      const windowVotes = votesByNew.get(tab.windowId)!
+      windowVotes.set(prior.windowId, (windowVotes.get(prior.windowId) ?? 0) + 1)
+    }
+
+    const claimedOld = new Set<number>()
+    for (const [newWindowId, windowVotes] of votesByNew) {
+      if ((nextState.panelsByWindow[newWindowId]?.length ?? 0) > 0) continue
+      let bestOld = -1
+      let bestCount = 0
+      for (const [oldWindowId, count] of windowVotes) {
+        if (claimedOld.has(oldWindowId)) continue
+        if (count > bestCount) {
+          bestOld = oldWindowId
+          bestCount = count
+        }
+      }
+      if (bestOld === -1) continue
+      claimedOld.add(bestOld)
+
+      const oldPanels = nextState.panelsByWindow[bestOld]
+      if (oldPanels && oldPanels.length > 0) {
+        nextState.panelsByWindow[newWindowId] = oldPanels.map((p) => ({
+          ...p,
+          windowId: newWindowId,
+        }))
+        delete nextState.panelsByWindow[bestOld]
+      }
+      if (nextState.panelOrderByWindow[bestOld]) {
+        nextState.panelOrderByWindow[newWindowId] = nextState.panelOrderByWindow[bestOld]!
+        delete nextState.panelOrderByWindow[bestOld]
+      }
+      if (nextState.activePanelByWindow[bestOld] !== undefined) {
+        nextState.activePanelByWindow[newWindowId] = nextState.activePanelByWindow[bestOld]!
+        delete nextState.activePanelByWindow[bestOld]
+      }
+    }
+
+    for (const windowIdKey of Object.keys(nextState.panelsByWindow)) {
+      const windowId = Number(windowIdKey)
+      if (!currentWindowIds.has(windowId) && !nextState.nodesByWindow[windowId]) {
+        delete nextState.panelsByWindow[windowId]
+        delete nextState.panelOrderByWindow[windowId]
+        delete nextState.activePanelByWindow[windowId]
+      }
+    }
+
+    log('rehydrate window remap', {
+      remappedWindows: claimedOld.size,
+    })
+  }
+
   const priorChildOrder = new Map<NodeId, NodeId[]>()
   const priorRootOrderByPanel = new Map<PanelId, NodeId[]>()
   if (priorState) {

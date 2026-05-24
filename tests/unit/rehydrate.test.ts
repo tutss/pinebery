@@ -423,6 +423,65 @@ describe('rehydrate', () => {
   })
 })
 
+describe('rehydrate panel persistence across window ID change', () => {
+  it('remaps panels to new window IDs when tabs match by URL', () => {
+    const OLD_WINDOW = 1
+    const NEW_WINDOW = 99
+
+    const a = makePriorNode('a', 100, { url: 'https://a.test', windowId: OLD_WINDOW })
+    const prior = buildPriorState([a], ['a'])
+    prior.panelsByWindow[OLD_WINDOW] = [
+      { id: P, name: 'Tabs', icon: '📄', color: 'grey', windowId: OLD_WINDOW },
+      { id: 'work', name: 'Work', icon: '💼', color: 'red', windowId: OLD_WINDOW },
+    ]
+    prior.panelOrderByWindow[OLD_WINDOW] = [P, 'work']
+    prior.activePanelByWindow = { [OLD_WINDOW]: 'work' }
+
+    const tabs = [
+      makeFakeTab({ id: 500, index: 0, windowId: NEW_WINDOW, url: 'https://a.test' }),
+    ]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+
+    expect(result.state.panelsByWindow[NEW_WINDOW]).toHaveLength(2)
+    expect(result.state.panelsByWindow[NEW_WINDOW]![0]!.windowId).toBe(NEW_WINDOW)
+    expect(result.state.panelsByWindow[NEW_WINDOW]![1]!.name).toBe('Work')
+    expect(result.state.panelsByWindow[NEW_WINDOW]![1]!.windowId).toBe(NEW_WINDOW)
+    expect(result.state.panelOrderByWindow[NEW_WINDOW]).toEqual([P, 'work'])
+    expect(result.state.activePanelByWindow[NEW_WINDOW]).toBe('work')
+
+    expect(result.state.panelsByWindow[OLD_WINDOW]).toBeUndefined()
+    expect(result.state.panelOrderByWindow[OLD_WINDOW]).toBeUndefined()
+  })
+
+  it('preserves node panelId assignments across window ID change', () => {
+    const OLD_WINDOW = 1
+    const NEW_WINDOW = 42
+
+    const a = makePriorNode('a', 100, { url: 'https://a.test', windowId: OLD_WINDOW, panelId: 'work' })
+    const b = makePriorNode('b', 101, { url: 'https://b.test', windowId: OLD_WINDOW, panelId: P })
+    const prior = buildPriorState([a, b], ['b'])
+    prior.rootOrderByWindow[OLD_WINDOW]!['work'] = ['a']
+    prior.panelsByWindow[OLD_WINDOW] = [
+      { id: P, name: 'Tabs', icon: '📄', color: 'grey', windowId: OLD_WINDOW },
+      { id: 'work', name: 'Work', icon: '💼', color: 'red', windowId: OLD_WINDOW },
+    ]
+    prior.panelOrderByWindow[OLD_WINDOW] = [P, 'work']
+
+    const tabs = [
+      makeFakeTab({ id: 500, index: 0, windowId: NEW_WINDOW, url: 'https://a.test' }),
+      makeFakeTab({ id: 501, index: 1, windowId: NEW_WINDOW, url: 'https://b.test' }),
+    ]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+
+    const bucket = result.state.nodesByWindow[NEW_WINDOW]!
+    expect(bucket['a']!.panelId).toBe('work')
+    expect(bucket['b']!.panelId).toBe(P)
+    expect(result.state.panelsByWindow[NEW_WINDOW]).toHaveLength(2)
+    expect(rootOrder(result.state, NEW_WINDOW, 'work')).toEqual(['a'])
+    expect(rootOrder(result.state, NEW_WINDOW, P)).toEqual(['b'])
+  })
+})
+
 describe('rehydrate customTitle', () => {
   it('carries customTitle forward when prior matches by tabId', () => {
     const prior = buildPriorState(
