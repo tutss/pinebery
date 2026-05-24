@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.3 - 2026-05-24
+
+### Bug fixes
+
+- place Cmd+T tabs as roots instead of children ([186a80a](https://github.com/tutss/pinebery/commit/186a80ace16d298a5e020befe283b0d3b906227f))
+
 ## v1.2.2 - 2026-05-24
 
 ### Bug fixes
