@@ -453,6 +453,61 @@ describe('rehydrate panel persistence across window ID change', () => {
     expect(result.state.panelOrderByWindow[OLD_WINDOW]).toBeUndefined()
   })
 
+  it('reassigns a root stranded in a non-existent panel to the first valid panel', () => {
+    const stranded = makePriorNode('stranded', 100, { panelId: 'ghost-panel' })
+    const normal = makePriorNode('normal', 101, { panelId: P })
+    const prior = buildPriorState([stranded, normal], ['normal'])
+    prior.rootOrderByWindow[DEFAULT_WINDOW_ID]!['ghost-panel'] = ['stranded']
+
+    const tabs = [
+      makeFakeTab({ id: 100, index: 0 }),
+      makeFakeTab({ id: 101, index: 1 }),
+    ]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+
+    expect(bucket['stranded']!.panelId).toBe(P)
+    expect(rootOrder(result.state, DEFAULT_WINDOW_ID, P)).toContain('stranded')
+    expect(rootOrder(result.state, DEFAULT_WINDOW_ID, 'ghost-panel')).toEqual([])
+  })
+
+  it('moves the whole subtree of a stranded root into the valid panel', () => {
+    const root = makePriorNode('root', 100, { panelId: 'ghost-panel', childIds: ['kid'] })
+    const kid = makePriorNode('kid', 101, { panelId: 'ghost-panel', parentId: 'root' })
+    const prior = buildPriorState([root, kid], [])
+    prior.rootOrderByWindow[DEFAULT_WINDOW_ID]!['ghost-panel'] = ['root']
+
+    const tabs = [
+      makeFakeTab({ id: 100, index: 0 }),
+      makeFakeTab({ id: 101, index: 1 }),
+    ]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+
+    expect(bucket['root']!.panelId).toBe(P)
+    expect(bucket['kid']!.panelId).toBe(P)
+    expect(bucket['root']!.childIds).toEqual(['kid'])
+    expect(rootOrder(result.state, DEFAULT_WINDOW_ID, P)).toContain('root')
+  })
+
+  it('leaves roots assigned to real custom panels untouched', () => {
+    const work = makePriorNode('work-root', 100, { panelId: 'work' })
+    const prior = buildPriorState([work], [])
+    prior.panelsByWindow[DEFAULT_WINDOW_ID] = [
+      { id: P, name: 'Tabs', icon: '📄', color: 'grey', windowId: DEFAULT_WINDOW_ID },
+      { id: 'work', name: 'Work', icon: '💼', color: 'red', windowId: DEFAULT_WINDOW_ID },
+    ]
+    prior.panelOrderByWindow[DEFAULT_WINDOW_ID] = [P, 'work']
+    prior.rootOrderByWindow[DEFAULT_WINDOW_ID]!['work'] = ['work-root']
+
+    const tabs = [makeFakeTab({ id: 100, index: 0 })]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+
+    expect(bucket['work-root']!.panelId).toBe('work')
+    expect(rootOrder(result.state, DEFAULT_WINDOW_ID, 'work')).toEqual(['work-root'])
+  })
+
   it('preserves node panelId assignments across window ID change', () => {
     const OLD_WINDOW = 1
     const NEW_WINDOW = 42

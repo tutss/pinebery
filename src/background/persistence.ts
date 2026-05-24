@@ -360,6 +360,9 @@ export function rehydrate(
     const windowId = Number(windowIdKey)
     const bucket = nextState.nodesByWindow[windowId]!
 
+    const validPanelIds = new Set((nextState.panelsByWindow[windowId] ?? []).map((p) => p.id))
+    const fallbackPanelId = nextState.panelOrderByWindow[windowId]?.[0] ?? DEFAULT_PANEL_ID
+
     const childrenByParent = new Map<NodeId | null, NodeId[]>()
     for (const node of Object.values(bucket)) {
       const list = childrenByParent.get(node.parentId) ?? []
@@ -367,8 +370,36 @@ export function rehydrate(
       childrenByParent.set(node.parentId, list)
     }
 
-    const rootsByPanel = new Map<PanelId, NodeId[]>()
     const rootChildren = childrenByParent.get(null) ?? []
+
+    // A root whose panel no longer exists would be stranded in rootOrderByWindow
+    // under a panel that never renders, hiding its tab. Reassign such roots and
+    // their whole subtree to an existing panel so the tabs stay visible.
+    let reassignedRoots = 0
+    for (const rootId of rootChildren) {
+      const rootNode = bucket[rootId]!
+      if (rootNode.panelId === fallbackPanelId || validPanelIds.has(rootNode.panelId)) continue
+      reassignedRoots++
+      const subtreeStack: NodeId[] = [rootId]
+      while (subtreeStack.length > 0) {
+        const id = subtreeStack.pop()!
+        const node = bucket[id]
+        if (!node) continue
+        node.panelId = fallbackPanelId
+        for (const childId of childrenByParent.get(id) ?? []) {
+          subtreeStack.push(childId)
+        }
+      }
+    }
+    if (reassignedRoots > 0) {
+      warn('rehydrate reassigned stranded roots to valid panel', {
+        windowId,
+        reassignedRoots,
+        fallbackPanelId,
+      })
+    }
+
+    const rootsByPanel = new Map<PanelId, NodeId[]>()
     for (const rootId of rootChildren) {
       const node = bucket[rootId]!
       const panelId = node.panelId
