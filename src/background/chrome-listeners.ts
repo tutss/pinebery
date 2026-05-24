@@ -124,7 +124,7 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
 
   const tabUrl = (tab.pendingUrl ?? tab.url ?? '').toLowerCase()
   const isWebLink = tabUrl.startsWith('http://') || tabUrl.startsWith('https://')
-  const isLinkOpened = hasOpener
+  const isLinkOpened = hasOpener && isWebLink
 
   log('tab-created signals', {
     tabId: tab.id,
