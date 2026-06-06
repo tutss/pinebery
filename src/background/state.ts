@@ -1,6 +1,7 @@
 import type { PanelId, StoredState } from '../shared/types'
 import { DEFAULT_PANEL_ID } from '../shared/types'
 import { saveStoredState } from './persistence'
+import { enforcePinnedLeaves } from './tree-ops'
 import { MSG_TREE_UPDATED } from '../shared/messages'
 
 let currentState: StoredState | null = null
@@ -38,9 +39,10 @@ export async function getState(): Promise<StoredState> {
 
 export async function setState(next: StoredState): Promise<void> {
   await ready
-  currentState = next
-  await saveStoredState(next)
-  broadcastTreeUpdated(next)
+  const normalized = enforcePinnedLeaves(next)
+  currentState = normalized
+  await saveStoredState(normalized)
+  broadcastTreeUpdated(normalized)
 }
 
 let mutationLock: Promise<unknown> = Promise.resolve()

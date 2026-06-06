@@ -2,6 +2,7 @@ import type { NodeId, PanelId, StoredState, StoredStateV1, TreeNode, Panel } fro
 import { createEmptyState, DEFAULT_PANEL_ID, DEFAULT_SETTINGS } from '../shared/types'
 import { log, warn } from '../shared/logger'
 import { buildNodeFromTab } from '../shared/node-factory'
+import { enforcePinnedLeaves } from './tree-ops'
 
 const STORAGE_KEY = 'pinebery-state-v1'
 const BACKUP_KEY_PREFIX = 'pinebery-state-v1-backup-'
@@ -469,5 +470,5 @@ export function rehydrate(
     }
   }
 
-  return { state: nextState }
+  return { state: enforcePinnedLeaves(nextState) }
 }

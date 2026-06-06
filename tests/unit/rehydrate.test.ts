@@ -165,6 +165,23 @@ describe('rehydrate', () => {
     expect(rootOrder(result.state)).toEqual(['child'])
   })
 
+  it('promotes a tab nested under a pinned tab to a root (recovers hidden tabs)', () => {
+    const pinned = makePriorNode('pin', 1, { pinned: true, childIds: ['child'] })
+    const child = makePriorNode('child', 2, { parentId: 'pin' })
+    const prior = buildPriorState([pinned, child], ['pin'])
+
+    const tabs = [
+      makeFakeTab({ id: 1, index: 0, pinned: true }),
+      makeFakeTab({ id: 2, index: 1 }),
+    ]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    expect(bucket['pin']!.pinned).toBe(true)
+    expect(bucket['pin']!.childIds).toEqual([])
+    expect(bucket['child']!.parentId).toBeNull()
+    expect(rootOrder(result.state)).toContain('child')
+  })
+
   it('rebuilds from scratch when no prior tab ids match (browser restart scenario)', () => {
     const priorRoot = makePriorNode('root', 100, { childIds: ['c1'] })
     const priorC1 = makePriorNode('c1', 101, { parentId: 'root' })

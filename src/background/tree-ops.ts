@@ -397,6 +397,68 @@ export function toggleCollapse(state: StoredState, nodeId: NodeId): StoredState 
   return next
 }
 
+function detachToRoot(state: StoredState, nodeId: NodeId): void {
+  const node = getNode(state, nodeId)
+  if (!node) return
+  removeFromParentList(state, nodeId)
+  node.parentId = null
+  const order = getRootOrder(state, node.windowId, node.panelId)
+  if (!order.includes(nodeId)) {
+    order.push(nodeId)
+  }
+  setRootOrder(state, node.windowId, node.panelId, order)
+}
+
+/**
+ * Enforces the invariant that a pinned tab is always a childless root.
+ *
+ * Pinned tabs render as standalone favicon tiles (`PinnedSection`) and the main
+ * list drops everything beneath a pinned root (`splitPinned` in `App.svelte`),
+ * so any tab nested under a pinned tab is invisible. Instead of guarding every
+ * mutation that can create such nesting (a link opened from a pinned tab,
+ * pinning a tab that has children, drag re-parenting, rehydration), this is the
+ * single place the invariant lives. It is applied at the state boundary —
+ * `setState` and the `rehydrate` result — and promotes offending nodes to roots,
+ * preserving each node's panel and the rest of its subtree.
+ *
+ * Returns the input state unchanged (no clone) when the invariant already holds.
+ */
+export function enforcePinnedLeaves(state: StoredState): StoredState {
+  let violates = false
+  for (const bucket of Object.values(state.nodesByWindow)) {
+    for (const node of Object.values(bucket)) {
+      if (node.pinned && (node.childIds.length > 0 || node.parentId !== null)) {
+        violates = true
+        break
+      }
+    }
+    if (violates) break
+  }
+  if (!violates) return state
+
+  const next = cloneState(state)
+  for (const bucket of Object.values(next.nodesByWindow)) {
+    // Promoting a child can surface further nesting (e.g. a pinned tab nested
+    // under another pinned tab), so repeat over the bucket until it is stable.
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const node of Object.values(bucket)) {
+        if (!node.pinned) continue
+        for (const childId of [...node.childIds]) {
+          detachToRoot(next, childId)
+          changed = true
+        }
+        if (node.parentId !== null) {
+          detachToRoot(next, node.id)
+          changed = true
+        }
+      }
+    }
+  }
+  return next
+}
+
 export function flattenForRender(
   state: StoredState,
   windowId: number,

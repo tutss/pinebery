@@ -26,6 +26,7 @@ import {
   findNodeByTabId,
   setCustomTitle,
   promoteToRoot,
+  enforcePinnedLeaves,
 } from '../../src/background/tree-ops'
 
 const DEFAULT_WINDOW_ID = 1
@@ -708,5 +709,51 @@ describe('promoteToRoot', () => {
     const state = buildBasicTree()
     const next = promoteToRoot(state, 'a')
     expect(next).toBe(state)
+  })
+})
+
+describe('enforcePinnedLeaves', () => {
+  it('returns the same state untouched when no pinned tab has children', () => {
+    const state = buildBasicTree()
+    const next = enforcePinnedLeaves(state)
+    expect(next).toBe(state)
+  })
+
+  it('promotes a child of a pinned tab to a root', () => {
+    let state = createEmptyState()
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('pin', 1, { pinned: true }))
+    state = insertChild(state, 'pin', makeNode('child', 2))
+
+    const next = enforcePinnedLeaves(state)
+    expect(getNode(next, 'pin')?.childIds).toEqual([])
+    expect(getNode(next, 'child')?.parentId).toBeNull()
+    expect(rootOrder(next)).toContain('child')
+  })
+
+  it('keeps the promoted tab in its own panel and preserves its subtree', () => {
+    let state = createEmptyState()
+    state = createPanel(state, DEFAULT_WINDOW_ID, makePanel('work'))
+    state = insertRoot(state, DEFAULT_WINDOW_ID, 'work', makeNode('pin', 1, { pinned: true }))
+    state = insertChild(state, 'pin', makeNode('child', 2))
+    state = insertChild(state, 'child', makeNode('grandchild', 3))
+
+    const next = enforcePinnedLeaves(state)
+    expect(getNode(next, 'child')?.parentId).toBeNull()
+    expect(getNode(next, 'child')?.panelId).toBe('work')
+    expect(getNode(next, 'child')?.childIds).toEqual(['grandchild'])
+    expect(getNode(next, 'grandchild')?.parentId).toBe('child')
+    expect(rootOrder(next, DEFAULT_WINDOW_ID, 'work')).toContain('child')
+  })
+
+  it('promotes a pinned tab that is itself nested under another pinned tab', () => {
+    let state = createEmptyState()
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('outer', 1, { pinned: true }))
+    state = insertChild(state, 'outer', makeNode('inner', 2, { pinned: true }))
+
+    const next = enforcePinnedLeaves(state)
+    expect(getNode(next, 'outer')?.childIds).toEqual([])
+    expect(getNode(next, 'inner')?.parentId).toBeNull()
+    expect(getNode(next, 'inner')?.pinned).toBe(true)
+    expect(rootOrder(next)).toEqual(expect.arrayContaining(['outer', 'inner']))
   })
 })
