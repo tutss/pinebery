@@ -14,6 +14,20 @@ Tree-style vertical tabs in Chrome's side panel. Tabs opened from another tab be
 - Light, dark, and system themes; comfortable and compact density
 - Configurable placement rules for new tabs from links and blank tabs
 
+## Installation
+
+Install the latest build from the [releases page](https://github.com/tutss/pinebery/releases):
+
+1. Download `pinebery-v<version>.zip` from the most recent release and unzip it.
+2. Open `chrome://extensions` and turn on Developer mode (toggle in the top-right).
+3. Click "Load unpacked" and select the unzipped folder (the one containing `manifest.json`).
+
+Works in Chrome and other Chromium browsers such as Edge and Brave. A few things to expect:
+
+- Load the unzipped folder, not the `.zip` itself. Chrome cannot install a zip directly.
+- Developer mode must stay enabled, and Chrome shows a "disable developer mode extensions" prompt on some startups.
+- The extension does not auto-update. To update, download the newer release and load it again.
+
 ## Development
 
 ```bash
