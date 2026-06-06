@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url'
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DIST_PATH = path.resolve(CURRENT_DIR, '../../dist')
 
+// Matches DEFAULT_PANEL_ID in src/shared/types.ts. State is v2: root order is
+// nested per panel under each window.
+const DEFAULT_PANEL = 'default'
+
 let context: BrowserContext
 let extensionId: string
 let extPage: Page
@@ -15,11 +19,13 @@ interface NodeInfo {
   tabId: number
   parentId: string | null
   childIds: string[]
+  url: string
+  panelId: string
 }
 
 interface TreeState {
   nodesByWindow: Record<string, Record<string, NodeInfo>>
-  rootOrderByWindow: Record<string, string[]>
+  rootOrderByWindow: Record<string, Record<string, string[]>>
   settings: Record<string, string>
 }
 
@@ -56,9 +62,8 @@ test.afterAll(async () => {
 async function getTreeState(): Promise<TreeState> {
   return extPage.evaluate(() => {
     return new Promise<any>((resolve) => {
-      chrome.runtime.sendMessage(
-        { type: 'pinebery/request-tree' },
-        (response: any) => resolve(response.state),
+      chrome.runtime.sendMessage({ type: 'pinebery/request-tree' }, (response: any) =>
+        resolve(response.state),
       )
     })
   })
@@ -75,6 +80,28 @@ function getWindowId(state: TreeState): string {
   return Object.keys(state.rootOrderByWindow)[0]
 }
 
+function rootList(state: TreeState, windowId: string, panelId = DEFAULT_PANEL): string[] {
+  return state.rootOrderByWindow[windowId]?.[panelId] ?? []
+}
+
+function findNodeByUrl(state: TreeState, windowId: string, urlPart: string): NodeInfo | undefined {
+  return Object.values(state.nodesByWindow[windowId] ?? {}).find((n) => n.url.includes(urlPart))
+}
+
+async function openLinkTab(parentPage: Page, href: string): Promise<Page> {
+  const [childPage] = await Promise.all([
+    context.waitForEvent('page'),
+    parentPage.evaluate((url) => {
+      const a = document.createElement('a')
+      a.href = url
+      a.target = '_blank'
+      document.body.appendChild(a)
+      a.click()
+    }, href),
+  ])
+  await childPage.waitForTimeout(800)
+  return childPage
+}
 
 test.describe('blank tab placement', () => {
   test('root-end: Ctrl+T blank tab lands at end of root list', async () => {
@@ -86,7 +113,7 @@ test.describe('blank tab placement', () => {
 
     const stateBefore = await getTreeState()
     const windowId = getWindowId(stateBefore)
-    const rootCountBefore = stateBefore.rootOrderByWindow[windowId].length
+    const rootCountBefore = rootList(stateBefore, windowId).length
 
     await extPage.evaluate(async () => {
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -95,7 +122,7 @@ test.describe('blank tab placement', () => {
     await extPage.waitForTimeout(800)
 
     const stateAfter = await getTreeState()
-    const rootsAfter = stateAfter.rootOrderByWindow[windowId]
+    const rootsAfter = rootList(stateAfter, windowId)
 
     expect(rootsAfter.length).toBe(rootCountBefore + 1)
     const lastNode = stateAfter.nodesByWindow[windowId][rootsAfter[rootsAfter.length - 1]]
@@ -114,7 +141,7 @@ test.describe('blank tab placement', () => {
 
     const stateBefore = await getTreeState()
     const windowId = getWindowId(stateBefore)
-    const firstRootBefore = stateBefore.rootOrderByWindow[windowId][0]
+    const firstRootBefore = rootList(stateBefore, windowId)[0]
 
     await extPage.evaluate(async () => {
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -123,7 +150,7 @@ test.describe('blank tab placement', () => {
     await extPage.waitForTimeout(800)
 
     const stateAfter = await getTreeState()
-    const rootsAfter = stateAfter.rootOrderByWindow[windowId]
+    const rootsAfter = rootList(stateAfter, windowId)
 
     expect(rootsAfter[0]).not.toBe(firstRootBefore)
     const topNode = stateAfter.nodesByWindow[windowId][rootsAfter[0]]
@@ -135,118 +162,117 @@ test.describe('blank tab placement', () => {
 })
 
 test.describe('link tab placement', () => {
-  test('child: tab from link becomes child of opener', async () => {
-    await updateSetting({ newTabFromLink: 'child' })
+  test('child: tab from a target=_blank link becomes child of opener', async () => {
+    await updateSetting({ newTabFromLink: 'child', newTabBlank: 'root-end' })
 
     const parentPage = await context.newPage()
     await parentPage.goto('https://example.com')
     await parentPage.waitForTimeout(500)
 
-    const stateBeforeLink = await getTreeState()
-    const windowId = getWindowId(stateBeforeLink)
-
-    const [childPage] = await Promise.all([
-      context.waitForEvent('page'),
-      parentPage.evaluate(() => {
-        const a = document.createElement('a')
-        a.href = 'https://example.org'
-        a.target = '_blank'
-        document.body.appendChild(a)
-        a.click()
-      }),
-    ])
-    await childPage.waitForTimeout(800)
+    const windowId = getWindowId(await getTreeState())
+    const childPage = await openLinkTab(parentPage, 'https://example.org/')
 
     const stateAfter = await getTreeState()
-    const allNodes = Object.values(stateAfter.nodesByWindow[windowId])
+    const parentNode = findNodeByUrl(stateAfter, windowId, 'example.com')
+    const childNode = findNodeByUrl(stateAfter, windowId, 'example.org')
 
-    const parentNode = allNodes.find((n) => {
-      const stateNode = stateAfter.nodesByWindow[windowId][n.id] as any
-      return stateNode?.url?.includes('example.com')
-    })
-    const childNode = allNodes.find((n) => {
-      const stateNode = stateAfter.nodesByWindow[windowId][n.id] as any
-      return stateNode?.url?.includes('example.org')
-    })
-
-    if (parentNode && childNode) {
-      expect(childNode.parentId).toBe(parentNode.id)
-      expect(parentNode.childIds).toContain(childNode.id)
-    }
+    expect(parentNode).toBeTruthy()
+    expect(childNode).toBeTruthy()
+    expect(childNode!.parentId).toBe(parentNode!.id)
+    expect(parentNode!.childIds).toContain(childNode!.id)
 
     await childPage.close()
     await parentPage.close()
     await extPage.waitForTimeout(300)
   })
 
-  test('sibling: tab from link becomes sibling of opener', async () => {
-    await updateSetting({ newTabFromLink: 'sibling' })
+  test('child: tab from a window.open("about:blank") button becomes child of opener', async () => {
+    await updateSetting({ newTabFromLink: 'child', newTabBlank: 'root-end' })
 
     const parentPage = await context.newPage()
     await parentPage.goto('https://example.com')
     await parentPage.waitForTimeout(500)
 
-    const stateBeforeLink = await getTreeState()
-    const windowId = getWindowId(stateBeforeLink)
+    const windowId = getWindowId(await getTreeState())
 
-    const [siblingPage] = await Promise.all([
+    // The popup-blocker-dodging pattern: open about:blank synchronously on a
+    // user gesture, then navigate it to the real URL afterwards.
+    await parentPage.evaluate(() => {
+      const btn = document.createElement('button')
+      btn.id = 'js-open'
+      btn.addEventListener('click', () => {
+        const w = window.open('about:blank', '_blank')
+        setTimeout(() => {
+          if (w) w.location.href = 'https://example.net/'
+        }, 60)
+      })
+      document.body.appendChild(btn)
+    })
+
+    const [childPage] = await Promise.all([
       context.waitForEvent('page'),
-      parentPage.evaluate(() => {
-        const a = document.createElement('a')
-        a.href = 'https://example.org'
-        a.target = '_blank'
-        document.body.appendChild(a)
-        a.click()
-      }),
+      parentPage.click('#js-open'),
     ])
-    await siblingPage.waitForTimeout(800)
+    await childPage.waitForTimeout(900)
 
     const stateAfter = await getTreeState()
-    const allNodes = Object.values(stateAfter.nodesByWindow[windowId])
+    const parentNode = findNodeByUrl(stateAfter, windowId, 'example.com')
+    const childNode = findNodeByUrl(stateAfter, windowId, 'example.net')
 
-    const parentNode = allNodes.find((n) => {
-      const stateNode = stateAfter.nodesByWindow[windowId][n.id] as any
-      return stateNode?.url?.includes('example.com')
-    })
-    const siblingNode = allNodes.find((n) => {
-      const stateNode = stateAfter.nodesByWindow[windowId][n.id] as any
-      return stateNode?.url?.includes('example.org')
-    })
+    expect(parentNode).toBeTruthy()
+    expect(childNode).toBeTruthy()
+    expect(childNode!.parentId).toBe(parentNode!.id)
+    expect(parentNode!.childIds).toContain(childNode!.id)
 
-    if (parentNode && siblingNode) {
-      expect(siblingNode.parentId).toBe(parentNode.parentId)
-    }
-
-    await siblingPage.close()
+    await childPage.close()
     await parentPage.close()
     await extPage.waitForTimeout(300)
   })
 
-  test('root-end: tab from link becomes root at end', async () => {
-    await updateSetting({ newTabFromLink: 'root-end' })
+  test('sibling: tab from link becomes sibling of opener and sits next to it', async () => {
+    await updateSetting({ newTabFromLink: 'sibling', newTabBlank: 'root-end' })
 
     const parentPage = await context.newPage()
     await parentPage.goto('https://example.com')
     await parentPage.waitForTimeout(500)
 
-    const [childPage] = await Promise.all([
-      context.waitForEvent('page'),
-      parentPage.evaluate(() => {
-        const a = document.createElement('a')
-        a.href = 'https://example.org'
-        a.target = '_blank'
-        document.body.appendChild(a)
-        a.click()
-      }),
-    ])
-    await childPage.waitForTimeout(800)
+    const windowId = getWindowId(await getTreeState())
+    const childPage = await openLinkTab(parentPage, 'https://example.org/')
 
     const stateAfter = await getTreeState()
-    const windowId = getWindowId(stateAfter)
-    const rootsAfter = stateAfter.rootOrderByWindow[windowId]
+    const parentNode = findNodeByUrl(stateAfter, windowId, 'example.com')
+    const siblingNode = findNodeByUrl(stateAfter, windowId, 'example.org')
 
-    const lastNode = stateAfter.nodesByWindow[windowId][rootsAfter[rootsAfter.length - 1]]
-    expect(lastNode.parentId).toBeNull()
+    expect(parentNode).toBeTruthy()
+    expect(siblingNode).toBeTruthy()
+    expect(siblingNode!.parentId).toBe(parentNode!.parentId)
+
+    // Sibling of a root opener is itself a root, placed immediately after it.
+    const roots = rootList(stateAfter, windowId)
+    expect(roots.indexOf(siblingNode!.id)).toBe(roots.indexOf(parentNode!.id) + 1)
+
+    await childPage.close()
+    await parentPage.close()
+    await extPage.waitForTimeout(300)
+  })
+
+  test('root-end: tab from link becomes root at end when configured', async () => {
+    await updateSetting({ newTabFromLink: 'root-end', newTabBlank: 'root-top' })
+
+    const parentPage = await context.newPage()
+    await parentPage.goto('https://example.com')
+    await parentPage.waitForTimeout(500)
+
+    const windowId = getWindowId(await getTreeState())
+    const childPage = await openLinkTab(parentPage, 'https://example.org/')
+
+    const stateAfter = await getTreeState()
+    const roots = rootList(stateAfter, windowId)
+    const childNode = findNodeByUrl(stateAfter, windowId, 'example.org')
+
+    expect(childNode).toBeTruthy()
+    expect(childNode!.parentId).toBeNull()
+    expect(roots[roots.length - 1]).toBe(childNode!.id)
 
     await childPage.close()
     await parentPage.close()

@@ -11,6 +11,7 @@ import {
 } from './tree-ops'
 import { log, warn } from '../shared/logger'
 import { buildNodeFromTab } from '../shared/node-factory'
+import { isLinkOpenedTab } from './new-tab-classifier'
 
 export function registerChromeListeners(): void {
   chrome.tabs.onCreated.addListener((tab) => {
@@ -122,9 +123,11 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
   const opener = openerNodeId ? state.nodesByWindow[tab.windowId]?.[openerNodeId] : null
   const hasOpener = opener !== null && opener !== undefined && opener.windowId === tab.windowId
 
-  const tabUrl = (tab.pendingUrl ?? tab.url ?? '').toLowerCase()
-  const isWebLink = tabUrl.startsWith('http://') || tabUrl.startsWith('https://')
-  const isLinkOpened = hasOpener && isWebLink
+  const isLinkOpened = isLinkOpenedTab({
+    hasOpener,
+    url: tab.url,
+    pendingUrl: tab.pendingUrl,
+  })
 
   log('tab-created signals', {
     tabId: tab.id,
@@ -133,7 +136,6 @@ async function handleTabCreated(tab: chrome.tabs.Tab): Promise<void> {
     pendingUrl: tab.pendingUrl,
     url: tab.url,
     active: tab.active,
-    isWebLink,
     isLinkOpened,
   })
 
