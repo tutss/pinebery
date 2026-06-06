@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.1 - 2026-06-06
+
+### Bug fixes
+
+- fall back to Chrome favicon service for CORP-blocked favicons ([5906502](https://github.com/tutss/pinebery/commit/59065023d2502a5ac775ea35c0425c28fba2f898))
+
 ## v1.3.0 - 2026-05-24
 
 ### Features
