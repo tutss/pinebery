@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.3 - 2026-06-06
+
+### Bug fixes
+
+- keep tabs opened from a pinned tab visible ([4ebe528](https://github.com/tutss/pinebery/commit/4ebe528b81169cd4d118a8562253f76f2c4fae4d))
+
+### Documentation
+
+- add release install instructions to README ([e1d61f3](https://github.com/tutss/pinebery/commit/e1d61f3fc947d2f8fa3ba6c1381e3b0f9aaac6a7))
+
 ## v1.3.2 - 2026-06-06
 
 ### Bug fixes
