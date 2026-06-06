@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getFaviconDisplayUrl } from '../../shared/favicon'
+  import { getFaviconSources } from '../../shared/favicon'
 
   interface Props {
     favIconUrl?: string | undefined
@@ -8,21 +8,23 @@
 
   let { favIconUrl, pageUrl }: Props = $props()
 
-  const displayUrl = $derived(getFaviconDisplayUrl(favIconUrl, pageUrl))
-  let imgFailed = $state(false)
+  const sources = $derived(getFaviconSources(favIconUrl, pageUrl))
+  let attemptIndex = $state(0)
 
   $effect(() => {
-    displayUrl
-    imgFailed = false
+    sources
+    attemptIndex = 0
   })
 
+  const currentSrc = $derived(sources[attemptIndex] ?? null)
+
   function handleError() {
-    imgFailed = true
+    attemptIndex += 1
   }
 </script>
 
-{#if displayUrl && !imgFailed}
-  <img class="favicon" src={displayUrl} alt="" onerror={handleError} />
+{#if currentSrc}
+  <img class="favicon" src={currentSrc} alt="" onerror={handleError} />
 {:else}
   <span class="favicon placeholder" aria-hidden="true"></span>
 {/if}
