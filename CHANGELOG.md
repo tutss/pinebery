@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.2 - 2026-06-06
+
+### Bug fixes
+
+- nest link-opened tabs under their opener again ([5c5c374](https://github.com/tutss/pinebery/commit/5c5c374fa3b0b03b935b25f1a269faa6e61bcff2))
+
 ## v1.3.1 - 2026-06-06
 
 ### Bug fixes
