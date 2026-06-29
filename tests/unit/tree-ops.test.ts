@@ -584,6 +584,41 @@ describe('moveToPanel', () => {
     const result = moveToPanel(state, 'a', P, true)
     expect(result).toBe(state)
   })
+
+  it('moves a nested node whose stored panelId drifted from the panel it renders in', () => {
+    // A nested node can end up with a panelId that disagrees with the panel its
+    // tree actually renders in (e.g. after rehydration re-parents it across
+    // panels). Rendering follows the tree, so the move must too — comparing the
+    // stored panelId against the target would silently no-op a real move.
+    let state = createEmptyState()
+    state = createPanel(state, DEFAULT_WINDOW_ID, makePanel(P))
+    state = createPanel(state, DEFAULT_WINDOW_ID, makePanel('work'))
+    state = insertRoot(state, DEFAULT_WINDOW_ID, 'work', makeNode('a', 1))
+    state = insertChild(state, 'a', makeNode('b', 2))
+    state.nodesByWindow[DEFAULT_WINDOW_ID]!['b']!.panelId = P // drift
+
+    // b is displayed under a in "work" even though its stored panelId says P.
+    expect(flattenForRender(state, DEFAULT_WINDOW_ID, 'work').map((e) => e.nodeId)).toEqual([
+      'a',
+      'b',
+    ])
+
+    const result = moveToPanel(state, 'b', P, true)
+    expect(result).not.toBe(state)
+    expect(getNode(result, 'b')!.panelId).toBe(P)
+    expect(getNode(result, 'b')!.parentId).toBeNull()
+    expect(rootOrder(result, DEFAULT_WINDOW_ID, P)).toEqual(['b'])
+    expect(rootOrder(result, DEFAULT_WINDOW_ID, 'work')).toEqual(['a'])
+  })
+
+  it('still no-ops when the node already renders in the target panel', () => {
+    let state = createEmptyState()
+    state = createPanel(state, DEFAULT_WINDOW_ID, makePanel(P))
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('a', 1))
+    state = insertChild(state, 'a', makeNode('b', 2))
+    // b's effective panel is P (its root ancestor a is in P).
+    expect(moveToPanel(state, 'b', P, true)).toBe(state)
+  })
 })
 
 describe('reorderPanels', () => {

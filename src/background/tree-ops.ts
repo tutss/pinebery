@@ -561,14 +561,27 @@ export function deletePanel(
   return { state: next, removedTabIds }
 }
 
+function getRootAncestorPanel(state: StoredState, nodeId: NodeId): PanelId {
+  let node = getNodeOrThrow(state, nodeId)
+  while (node.parentId !== null) {
+    const parent = getNode(state, node.parentId)
+    if (!parent) break
+    node = parent
+  }
+  return node.panelId
+}
+
 export function moveToPanel(
   state: StoredState,
   nodeId: NodeId,
   targetPanelId: PanelId,
   moveSubtree: boolean,
 ): StoredState {
-  const node = getNodeOrThrow(state, nodeId)
-  if (node.panelId === targetPanelId) return state
+  getNodeOrThrow(state, nodeId)
+  // Compare against the panel the node actually renders in (its root ancestor's
+  // panel) rather than its own stored panelId, which can drift out of sync for a
+  // nested node. Using the stored value here would silently no-op a real move.
+  if (getRootAncestorPanel(state, nodeId) === targetPanelId) return state
 
   const next = cloneState(state)
   const movingNode = getNodeOrThrow(next, nodeId)
