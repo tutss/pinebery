@@ -27,7 +27,9 @@ import {
   setCustomTitle,
   promoteToRoot,
   enforcePinnedLeaves,
+  createFolder,
 } from '../../src/background/tree-ops'
+import { buildFolderNode } from '../../src/shared/node-factory'
 
 const DEFAULT_WINDOW_ID = 1
 const P = DEFAULT_PANEL_ID
@@ -64,6 +66,10 @@ function buildBasicTree(): StoredState {
 
 function rootOrder(state: StoredState, windowId: number = DEFAULT_WINDOW_ID, panelId: string = P): NodeId[] {
   return state.rootOrderByWindow[windowId]?.[panelId] ?? []
+}
+
+function makeFolder(id: NodeId, title = `folder-${id}`): TreeNode {
+  return buildFolderNode(id, DEFAULT_WINDOW_ID, P, title)
 }
 
 describe('insertRoot', () => {
@@ -790,5 +796,99 @@ describe('enforcePinnedLeaves', () => {
     expect(getNode(next, 'inner')?.parentId).toBeNull()
     expect(getNode(next, 'inner')?.pinned).toBe(true)
     expect(rootOrder(next)).toEqual(expect.arrayContaining(['outer', 'inner']))
+  })
+})
+
+describe('createFolder', () => {
+  it('inserts a folder as a panel root', () => {
+    let state = createEmptyState()
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('a', 1))
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('f'), null)
+
+    const folder = getNode(state, 'f')!
+    expect(folder.kind).toBe('folder')
+    expect(folder.tabId).toBeUndefined()
+    expect(folder.parentId).toBeNull()
+    expect(rootOrder(state)).toEqual(['a', 'f'])
+  })
+
+  it('inserts a folder at a specific root index', () => {
+    let state = createEmptyState()
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('a', 1))
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('b', 2))
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('f'), null, 1)
+    expect(rootOrder(state)).toEqual(['a', 'f', 'b'])
+  })
+
+  it('inserts a folder as a child of a tab node', () => {
+    let state = createEmptyState()
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('a', 1))
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('f'), 'a')
+
+    expect(getNode(state, 'a')?.childIds).toEqual(['f'])
+    expect(getNode(state, 'f')?.parentId).toBe('a')
+  })
+
+  it('supports folders nested inside folders', () => {
+    let state = createEmptyState()
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('outer'), null)
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('inner'), 'outer')
+
+    expect(getNode(state, 'outer')?.childIds).toEqual(['inner'])
+    expect(getNode(state, 'inner')?.kind).toBe('folder')
+    expect(getNode(state, 'inner')?.parentId).toBe('outer')
+  })
+
+  it('lets a tab be re-parented into a folder via moveNode', () => {
+    let state = createEmptyState()
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('a', 1))
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('f'), null)
+    state = moveNode(state, 'a', 'f', 0)
+
+    expect(getNode(state, 'a')?.parentId).toBe('f')
+    expect(getNode(state, 'f')?.childIds).toEqual(['a'])
+    expect(rootOrder(state)).toEqual(['f'])
+  })
+})
+
+describe('closeNode with folders', () => {
+  it('promotes a folder\'s children and removes no tabs for the folder itself', () => {
+    let state = createEmptyState()
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('f'), null)
+    state = insertChild(state, 'f', makeNode('a', 1))
+    state = insertChild(state, 'f', makeNode('b', 2))
+
+    const result = closeNode(state, 'f', 'promote')
+    expect(result.removedTabIds).toEqual([])
+    expect(getNode(result.state, 'f')).toBeNull()
+    expect(getNode(result.state, 'a')?.parentId).toBeNull()
+    expect(getNode(result.state, 'b')?.parentId).toBeNull()
+    expect(rootOrder(result.state)).toEqual(['a', 'b'])
+  })
+
+  it('closes only the real tab descendants when deleting a folder subtree', () => {
+    let state = createEmptyState()
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('f'), null)
+    state = insertChild(state, 'f', makeNode('a', 1))
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('nested'), 'f')
+    state = insertChild(state, 'nested', makeNode('b', 2))
+
+    const result = closeNode(state, 'f', 'subtree')
+    expect(result.removedTabIds.sort()).toEqual([1, 2])
+    expect(getNode(result.state, 'f')).toBeNull()
+    expect(getNode(result.state, 'nested')).toBeNull()
+    expect(getNode(result.state, 'a')).toBeNull()
+    expect(getNode(result.state, 'b')).toBeNull()
+  })
+
+  it('promoting a tab parent keeps a nested folder child intact', () => {
+    let state = createEmptyState()
+    state = insertRoot(state, DEFAULT_WINDOW_ID, P, makeNode('a', 1))
+    state = createFolder(state, DEFAULT_WINDOW_ID, P, makeFolder('f'), 'a')
+
+    const result = closeNode(state, 'a', 'promote')
+    expect(result.removedTabIds).toEqual([1])
+    expect(getNode(result.state, 'f')?.parentId).toBeNull()
+    expect(rootOrder(result.state)).toEqual(['f'])
   })
 })

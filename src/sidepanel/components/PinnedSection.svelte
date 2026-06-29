@@ -19,7 +19,7 @@
         title={node.title || node.url}
         onclick={() => activateTab(node.id)}
       >
-        <Favicon favIconUrl={node.favIconUrl} pageUrl={node.url} />
+        <Favicon favIconUrl={node.favIconUrl} pageUrl={node.url ?? ''} />
       </button>
     {/each}
   </div>

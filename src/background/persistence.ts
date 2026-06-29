@@ -98,7 +98,7 @@ export function rehydrate(
   if (priorState) {
     for (const bucket of Object.values(priorState.nodesByWindow)) {
       for (const node of Object.values(bucket)) {
-        priorNodesByTabId.set(node.tabId, node)
+        if (node.tabId !== undefined) priorNodesByTabId.set(node.tabId, node)
         allPriorNodes.push(node)
       }
     }

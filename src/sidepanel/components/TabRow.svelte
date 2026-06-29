@@ -113,7 +113,7 @@
     <span class="chevron-spacer" aria-hidden="true"></span>
   {/if}
 
-  <Favicon favIconUrl={node.favIconUrl} pageUrl={node.url} />
+  <Favicon favIconUrl={node.favIconUrl} pageUrl={node.url ?? ''} />
 
   <span class="title">{displayTitle || node.url || 'Loading...'}</span>
 

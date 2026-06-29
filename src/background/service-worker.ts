@@ -62,7 +62,8 @@ if (chrome.sidePanel?.setPanelBehavior) {
 const PANEL_COLOR_CYCLE: GroupColor[] = ['blue', 'green', 'purple', 'orange', 'red', 'cyan', 'pink', 'yellow', 'grey']
 
 async function tryRecoverTabId(node: TreeNode): Promise<number | null> {
-  if (!node.url) return null
+  if (!node.url || node.tabId === undefined) return null
+  const removedTabId = node.tabId
   let candidates: chrome.tabs.Tab[]
   try {
     candidates = await chrome.tabs.query({ url: node.url, windowId: node.windowId })
@@ -75,7 +76,7 @@ async function tryRecoverTabId(node: TreeNode): Promise<number | null> {
   const newTabId = found.id
   await withStateLock(async () => {
     const current = await getState()
-    const result = replaceTabId(current, node.tabId, newTabId)
+    const result = replaceTabId(current, removedTabId, newTabId)
     if (result.updated) {
       log('activate-tab recovered tabId', {
         nodeId: node.id,
@@ -140,7 +141,7 @@ async function bootstrap(): Promise<StoredState> {
         url: t.url,
         openerTabId: t.openerTabId,
       }))
-      const priorTabSample: { tabId: number; url: string; parentId: string | null }[] = []
+      const priorTabSample: { tabId: number | undefined; url: string | undefined; parentId: string | null }[] = []
       for (const bucket of Object.values(prior.nodesByWindow)) {
         for (const node of Object.values(bucket)) {
           if (priorTabSample.length >= 10) break
@@ -420,18 +421,20 @@ chrome.runtime.onMessage.addListener((message: PineberyMessage, _sender, sendRes
 
 async function syncChromeTabOrder(state: StoredState, movedNodeId: string): Promise<void> {
   const movedNode = getNode(state, movedNodeId)
-  if (!movedNode) return
+  // Folder nodes have no backing tab, so there is nothing to reorder in Chrome.
+  if (!movedNode || movedNode.tabId === undefined) return
+  const movedTabId = movedNode.tabId
 
   const windowTabs = await chrome.tabs.query({ windowId: movedNode.windowId })
   const pinnedCount = windowTabs.filter((tab) => tab.pinned).length
 
   const desiredOrder = computeDesiredTabOrder(state, movedNode.windowId)
-  const targetIndex = desiredOrder.indexOf(movedNode.tabId)
+  const targetIndex = desiredOrder.indexOf(movedTabId)
   if (targetIndex === -1) return
 
   const chromeIndex = pinnedCount + targetIndex
   try {
-    await chrome.tabs.move(movedNode.tabId, { index: chromeIndex })
+    await chrome.tabs.move(movedTabId, { index: chromeIndex })
   } catch (error) {
     warn('chrome.tabs.move failed', error)
   }
@@ -448,7 +451,9 @@ function computeDesiredTabOrder(state: StoredState, windowId: number): number[] 
       const nodeId = stack.pop()!
       const node = bucket[nodeId]
       if (!node || node.pinned) continue
-      result.push(node.tabId)
+      // Skip folders (no backing tab) but still descend so their tab children
+      // stay contiguous in the real strip where the folder sits.
+      if (node.tabId !== undefined) result.push(node.tabId)
       for (let i = node.childIds.length - 1; i >= 0; i--) {
         stack.push(node.childIds[i]!)
       }

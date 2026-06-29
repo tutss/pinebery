@@ -306,7 +306,10 @@ export function closeNode(
   if (mode === 'subtree') {
     const descendants = getDescendants(state, nodeId)
     const removedIds = [nodeId, ...descendants]
-    const removedTabIds = removedIds.map((id) => getNodeOrThrow(state, id).tabId)
+    // Folder nodes have no backing tab, so they contribute nothing to close.
+    const removedTabIds = removedIds
+      .map((id) => getNodeOrThrow(state, id).tabId)
+      .filter((tabId): tabId is number => tabId !== undefined)
 
     const next = cloneState(state)
     removeFromParentList(next, nodeId)
@@ -327,7 +330,7 @@ export function closeNode(
   delete bucket[nodeId]
   next.nodesByWindow[windowId] = bucket
 
-  return { state: next, removedTabIds: [target.tabId] }
+  return { state: next, removedTabIds: target.tabId !== undefined ? [target.tabId] : [] }
 }
 
 export function reorderSiblings(
@@ -487,6 +490,25 @@ export function flattenForRender(
   return result
 }
 
+/**
+ * Inserts a prebuilt folder node into the tree, either as a root of the given
+ * panel (`parentId === null`) or as a child of another node. Mirrors the
+ * insert helpers — the caller builds the node via `buildFolderNode`.
+ */
+export function createFolder(
+  state: StoredState,
+  windowId: number,
+  panelId: PanelId,
+  folder: TreeNode,
+  parentId: NodeId | null,
+  index?: number,
+): StoredState {
+  if (parentId === null) {
+    return insertRoot(state, windowId, panelId, folder, undefined, index)
+  }
+  return insertChild(state, parentId, folder, index)
+}
+
 export function createPanel(
   state: StoredState,
   windowId: number,
@@ -523,11 +545,11 @@ export function deletePanel(
   for (const rootId of roots) {
     const rootNode = getNode(next, rootId)
     if (rootNode) {
-      removedTabIds.push(rootNode.tabId)
+      if (rootNode.tabId !== undefined) removedTabIds.push(rootNode.tabId)
       const descendants = getDescendants(next, rootId)
       for (const descId of descendants) {
         const descNode = getNode(next, descId)
-        if (descNode) removedTabIds.push(descNode.tabId)
+        if (descNode?.tabId !== undefined) removedTabIds.push(descNode.tabId)
       }
     }
   }

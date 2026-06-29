@@ -2,6 +2,14 @@ export type NodeId = string
 
 export type PanelId = string
 
+/**
+ * A node is either a real Chrome tab (`'tab'`) or a virtual organizational
+ * container with no backing tab (`'folder'`). The field is optional so that
+ * state persisted before folders existed (and nodes built without an explicit
+ * kind) is treated as a tab — see `isFolder`.
+ */
+export type NodeKind = 'tab' | 'folder'
+
 export type GroupColor =
   | 'grey'
   | 'blue'
@@ -15,9 +23,13 @@ export type GroupColor =
 
 export interface TreeNode {
   id: NodeId
-  tabId: number
+  /** Absent (`'tab'` by default) for real tabs; `'folder'` for virtual containers. */
+  kind?: NodeKind
+  /** Absent for folder nodes, which have no backing Chrome tab. */
+  tabId?: number
   windowId: number
-  url: string
+  /** Absent for folder nodes. */
+  url?: string
   title: string
   customTitle?: string
   favIconUrl?: string
@@ -29,6 +41,11 @@ export interface TreeNode {
   audible?: boolean
   muted?: boolean
   panelId: PanelId
+}
+
+/** A folder is a node with no backing tab. Absent `kind` means a tab. */
+export function isFolder(node: TreeNode): boolean {
+  return node.kind === 'folder'
 }
 
 export interface Panel {
