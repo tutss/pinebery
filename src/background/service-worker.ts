@@ -94,6 +94,9 @@ function countNodeStats(state: StoredState): { total: number; withParent: number
   let withParent = 0
   for (const bucket of Object.values(state.nodesByWindow)) {
     for (const node of Object.values(bucket)) {
+      // The degradation heuristic is about tab tree loss; folders are carried
+      // forward verbatim by rehydrate and would only dilute the ratio.
+      if (node.kind === 'folder') continue
       total++
       if (node.parentId !== null) withParent++
     }

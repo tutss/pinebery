@@ -212,6 +212,108 @@ export function rehydrate(
     nextState.nodesByWindow[tab.windowId] = bucket
   }
 
+  // Window remap and folder injection both run before tab parent resolution:
+  // a tab nested under a folder can only re-link if that folder is already
+  // present (in the right window) as a parent candidate.
+  const oldToNewWindow = new Map<number, number>()
+  const currentWindowIds = new Set(
+    currentTabs.filter((t) => t.windowId !== undefined).map((t) => t.windowId!),
+  )
+  if (priorState) {
+    const votesByNew = new Map<number, Map<number, number>>()
+    for (const tab of currentTabs) {
+      if (tab.id === undefined || tab.windowId === undefined) continue
+      const prior = priorByCurrentTab.get(tab.id)
+      if (!prior || prior.windowId === tab.windowId) continue
+      if (!votesByNew.has(tab.windowId)) votesByNew.set(tab.windowId, new Map())
+      const windowVotes = votesByNew.get(tab.windowId)!
+      windowVotes.set(prior.windowId, (windowVotes.get(prior.windowId) ?? 0) + 1)
+    }
+
+    const claimedOld = new Set<number>()
+    for (const [newWindowId, windowVotes] of votesByNew) {
+      if ((nextState.panelsByWindow[newWindowId]?.length ?? 0) > 0) continue
+      let bestOld = -1
+      let bestCount = 0
+      for (const [oldWindowId, count] of windowVotes) {
+        if (claimedOld.has(oldWindowId)) continue
+        if (count > bestCount) {
+          bestOld = oldWindowId
+          bestCount = count
+        }
+      }
+      if (bestOld === -1) continue
+      claimedOld.add(bestOld)
+      oldToNewWindow.set(bestOld, newWindowId)
+
+      const oldPanels = nextState.panelsByWindow[bestOld]
+      if (oldPanels && oldPanels.length > 0) {
+        nextState.panelsByWindow[newWindowId] = oldPanels.map((p) => ({
+          ...p,
+          windowId: newWindowId,
+        }))
+        delete nextState.panelsByWindow[bestOld]
+      }
+      if (nextState.panelOrderByWindow[bestOld]) {
+        nextState.panelOrderByWindow[newWindowId] = nextState.panelOrderByWindow[bestOld]!
+        delete nextState.panelOrderByWindow[bestOld]
+      }
+      if (nextState.activePanelByWindow[bestOld] !== undefined) {
+        nextState.activePanelByWindow[newWindowId] = nextState.activePanelByWindow[bestOld]!
+        delete nextState.activePanelByWindow[bestOld]
+      }
+    }
+
+    for (const windowIdKey of Object.keys(nextState.panelsByWindow)) {
+      const windowId = Number(windowIdKey)
+      if (!currentWindowIds.has(windowId) && !nextState.nodesByWindow[windowId]) {
+        delete nextState.panelsByWindow[windowId]
+        delete nextState.panelOrderByWindow[windowId]
+        delete nextState.activePanelByWindow[windowId]
+      }
+    }
+
+    log('rehydrate window remap', {
+      remappedWindows: claimedOld.size,
+    })
+
+    // Folders have no backing tab, so they are never rebuilt from currentTabs.
+    // Carry them forward (keeping stable ids) into the window their tabs landed
+    // in, so empty folders persist and nested tabs can re-link to them. childIds
+    // and parentId are rebuilt below; we only seed the node and claim its id.
+    let foldersKept = 0
+    for (const folder of allPriorNodes) {
+      if (folder.kind !== 'folder') continue
+      const targetWindow = oldToNewWindow.get(folder.windowId) ?? folder.windowId
+      if (!nextState.nodesByWindow[targetWindow]) continue
+      const injected: TreeNode = {
+        ...structuredClone(folder),
+        windowId: targetWindow,
+        parentId: null,
+        childIds: [],
+      }
+      nextState.nodesByWindow[targetWindow]![folder.id] = injected
+      claimedPriorIds.add(folder.id)
+      foldersKept++
+    }
+    // Resolve each folder's own parent now that all folders and tabs are placed
+    // (a folder's parent may itself be another folder seeded in the loop above).
+    for (const folder of allPriorNodes) {
+      if (folder.kind !== 'folder') continue
+      const targetWindow = oldToNewWindow.get(folder.windowId) ?? folder.windowId
+      const injected = nextState.nodesByWindow[targetWindow]?.[folder.id]
+      if (!injected) continue
+      if (
+        folder.parentId &&
+        claimedPriorIds.has(folder.parentId) &&
+        nextState.nodesByWindow[targetWindow]?.[folder.parentId]
+      ) {
+        injected.parentId = folder.parentId
+      }
+    }
+    if (foldersKept > 0) log('rehydrate folders kept', { foldersKept })
+  }
+
   let parentResolved = 0
   let parentLost = 0
   const lostReasons: string[] = []
@@ -267,67 +369,6 @@ export function rehydrate(
   })
   if (lostReasons.length > 0) {
     warn('rehydrate lost parent links', lostReasons)
-  }
-
-  if (priorState) {
-    const currentWindowIds = new Set(
-      currentTabs.filter((t) => t.windowId !== undefined).map((t) => t.windowId!),
-    )
-    const votesByNew = new Map<number, Map<number, number>>()
-    for (const tab of currentTabs) {
-      if (tab.id === undefined || tab.windowId === undefined) continue
-      const prior = priorByCurrentTab.get(tab.id)
-      if (!prior || prior.windowId === tab.windowId) continue
-      if (!votesByNew.has(tab.windowId)) votesByNew.set(tab.windowId, new Map())
-      const windowVotes = votesByNew.get(tab.windowId)!
-      windowVotes.set(prior.windowId, (windowVotes.get(prior.windowId) ?? 0) + 1)
-    }
-
-    const claimedOld = new Set<number>()
-    for (const [newWindowId, windowVotes] of votesByNew) {
-      if ((nextState.panelsByWindow[newWindowId]?.length ?? 0) > 0) continue
-      let bestOld = -1
-      let bestCount = 0
-      for (const [oldWindowId, count] of windowVotes) {
-        if (claimedOld.has(oldWindowId)) continue
-        if (count > bestCount) {
-          bestOld = oldWindowId
-          bestCount = count
-        }
-      }
-      if (bestOld === -1) continue
-      claimedOld.add(bestOld)
-
-      const oldPanels = nextState.panelsByWindow[bestOld]
-      if (oldPanels && oldPanels.length > 0) {
-        nextState.panelsByWindow[newWindowId] = oldPanels.map((p) => ({
-          ...p,
-          windowId: newWindowId,
-        }))
-        delete nextState.panelsByWindow[bestOld]
-      }
-      if (nextState.panelOrderByWindow[bestOld]) {
-        nextState.panelOrderByWindow[newWindowId] = nextState.panelOrderByWindow[bestOld]!
-        delete nextState.panelOrderByWindow[bestOld]
-      }
-      if (nextState.activePanelByWindow[bestOld] !== undefined) {
-        nextState.activePanelByWindow[newWindowId] = nextState.activePanelByWindow[bestOld]!
-        delete nextState.activePanelByWindow[bestOld]
-      }
-    }
-
-    for (const windowIdKey of Object.keys(nextState.panelsByWindow)) {
-      const windowId = Number(windowIdKey)
-      if (!currentWindowIds.has(windowId) && !nextState.nodesByWindow[windowId]) {
-        delete nextState.panelsByWindow[windowId]
-        delete nextState.panelOrderByWindow[windowId]
-        delete nextState.activePanelByWindow[windowId]
-      }
-    }
-
-    log('rehydrate window remap', {
-      remappedWindows: claimedOld.size,
-    })
   }
 
   const priorChildOrder = new Map<NodeId, NodeId[]>()
