@@ -7,12 +7,14 @@ import {
   moveNode,
   toggleCollapse,
   createPanel,
+  createFolder,
   deletePanel,
   moveToPanel,
   reorderPanels,
   replaceTabId,
   setCustomTitle,
 } from './tree-ops'
+import { buildFolderNode } from '../shared/node-factory'
 import type { GroupColor, Panel, TreeNode } from '../shared/types'
 import { DEFAULT_PANEL_ID } from '../shared/types'
 import {
@@ -20,6 +22,8 @@ import {
   MSG_CLOSE_NODE,
   MSG_CREATE_PANEL,
   MSG_CREATE_PANEL_RESPONSE,
+  MSG_CREATE_FOLDER,
+  MSG_CREATE_FOLDER_RESPONSE,
   MSG_DELETE_PANEL,
   MSG_MOVE_NODE,
   MSG_MOVE_TO_PANEL,
@@ -396,6 +400,24 @@ chrome.runtime.onMessage.addListener((message: PineberyMessage, _sender, sendRes
         const nextState = createPanel(currentState, message.windowId, panel)
         await setState(nextState)
         sendResponse({ type: MSG_CREATE_PANEL_RESPONSE, panelId: panel.id })
+      } catch (error) {
+        warn(`${message.type} failed`, error)
+        sendResponse(undefined)
+      }
+    })
+    return true
+  }
+
+  if (message.type === MSG_CREATE_FOLDER) {
+    const { windowId, panelId, parentId, title } = message
+    void withStateLock(async () => {
+      const currentState = await getState()
+      try {
+        const nodeId = crypto.randomUUID()
+        const folder = buildFolderNode(nodeId, windowId, panelId, title)
+        const nextState = createFolder(currentState, windowId, panelId, folder, parentId)
+        await setState(nextState)
+        sendResponse({ type: MSG_CREATE_FOLDER_RESPONSE, nodeId })
       } catch (error) {
         warn(`${message.type} failed`, error)
         sendResponse(undefined)

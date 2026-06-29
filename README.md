@@ -7,6 +7,7 @@ Tree-style vertical tabs in Chrome's side panel. Tabs opened from another tab be
 - Tree-style tabs in the Chrome side panel, per-window
 - Auto parent/child from `openerTabId`, manual drag re-parenting
 - Configurable close-parent behavior (promote children or close subtree); Shift inverts the default
+- Folders: empty, nestable containers to group related tabs; persist even when empty
 - Pinned tabs in a compact section at the top
 - Chrome tab groups rendered as colored left-border bands
 - Filter-only search with dimmed-ancestor context

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TreeNode } from '../../shared/types'
+  import { isFolder, type TreeNode } from '../../shared/types'
   import {
     activateTab,
     closeNodeRequest,
@@ -30,17 +30,27 @@
     onDragEnd,
   }: Props = $props()
 
+  const folder = $derived(isFolder(node))
   const accentColor = $derived(groupColor ?? 'transparent')
   const guideLevels = $derived(Array.from({ length: depth }, (_, level) => level))
   const hasChildren = $derived(node.childIds.length > 0)
   const chevronLabel = $derived(node.collapsed ? 'expand' : 'collapse')
   const displayTitle = $derived(node.customTitle ?? node.title)
   const rowTooltip = $derived(
-    node.customTitle ? `${node.title} — ${node.url}` : node.url,
+    folder
+      ? displayTitle
+      : node.customTitle
+        ? `${node.title} — ${node.url}`
+        : node.url,
   )
 
   function handleRowClick() {
-    activateTab(node.id)
+    // A folder has no tab to activate; clicking it folds/unfolds its contents.
+    if (folder) {
+      toggleCollapseRequest(node.id)
+    } else {
+      activateTab(node.id)
+    }
   }
 
   function handleClose(event: MouseEvent) {
@@ -113,9 +123,13 @@
     <span class="chevron-spacer" aria-hidden="true"></span>
   {/if}
 
-  <Favicon favIconUrl={node.favIconUrl} pageUrl={node.url ?? ''} />
+  {#if folder}
+    <span class="folder-icon" aria-hidden="true">{node.collapsed ? '📁' : '📂'}</span>
+  {:else}
+    <Favicon favIconUrl={node.favIconUrl} pageUrl={node.url ?? ''} />
+  {/if}
 
-  <span class="title">{displayTitle || node.url || 'Loading...'}</span>
+  <span class="title" class:folder-title={folder}>{displayTitle || node.url || 'Loading...'}</span>
 
   {#if node.audible}
     <span class="audio-indicator" aria-label="playing audio">♪</span>
@@ -125,7 +139,7 @@
     type="button"
     class="close"
     onclick={handleClose}
-    aria-label="close tab (shift for subtree)"
+    aria-label={folder ? 'delete folder (shift to close contents)' : 'close tab (shift for subtree)'}
     tabindex="-1"
   >
     ×
@@ -229,6 +243,22 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: var(--row-font-size);
+  }
+
+  .title.folder-title {
+    font-weight: 600;
+    color: var(--fg-muted);
+  }
+
+  .folder-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
   }
 
   .audio-indicator {

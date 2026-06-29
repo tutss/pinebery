@@ -15,6 +15,8 @@ import {
   MSG_CLOSE_NODE,
   MSG_CREATE_PANEL,
   MSG_CREATE_PANEL_RESPONSE,
+  MSG_CREATE_FOLDER,
+  MSG_CREATE_FOLDER_RESPONSE,
   MSG_DELETE_PANEL,
   MSG_MOVE_NODE,
   MSG_MOVE_TO_PANEL,
@@ -179,6 +181,28 @@ export async function createPanelRequest(): Promise<PanelId | null> {
     }
   } catch (error) {
     console.warn('pinebery: failed to send pinebery/create-panel', error)
+  }
+  return null
+}
+
+export async function createFolderRequest(
+  parentId: NodeId | null = null,
+  title = 'New folder',
+): Promise<NodeId | null> {
+  if (treeStore.currentWindowId === null) return null
+  try {
+    const response = (await chrome.runtime.sendMessage({
+      type: MSG_CREATE_FOLDER,
+      windowId: treeStore.currentWindowId,
+      panelId: treeStore.activePanelId,
+      parentId,
+      title,
+    })) as PineberyMessage | undefined
+    if (response && response.type === MSG_CREATE_FOLDER_RESPONSE) {
+      return response.nodeId
+    }
+  } catch (error) {
+    console.warn('pinebery: failed to send pinebery/create-folder', error)
   }
   return null
 }
