@@ -7,6 +7,7 @@ import {
   type StoredState,
   type TreeNode,
 } from '../../src/shared/types'
+import { buildFolderNode } from '../../src/shared/node-factory'
 
 const DEFAULT_WINDOW_ID = 1
 const P = DEFAULT_PANEL_ID
@@ -646,5 +647,93 @@ describe('rehydrate customTitle', () => {
     const pinnedNode = Object.values(bucket).find((n) => n.tabId === 200)!
     expect(pinnedNode.parentId).toBeNull()
     expect(pinnedNode.pinned).toBe(true)
+  })
+})
+
+function makePriorFolder(id: NodeId, overrides: Partial<TreeNode> = {}): TreeNode {
+  return { ...buildFolderNode(id, DEFAULT_WINDOW_ID, P, `folder-${id}`), ...overrides }
+}
+
+describe('rehydrate with folders', () => {
+  it('preserves an empty folder across a restart', () => {
+    const prior = buildPriorState(
+      [makePriorNode('a', 1), makePriorFolder('f')],
+      ['a', 'f'],
+    )
+    const result = rehydrate([makeFakeTab({ id: 1, index: 0 })], prior, makeIdGenerator('n'))
+
+    const folder = result.state.nodesByWindow[DEFAULT_WINDOW_ID]?.['f']
+    expect(folder?.kind).toBe('folder')
+    expect(folder?.childIds).toEqual([])
+    expect(folder?.tabId).toBeUndefined()
+    expect(rootOrder(result.state)).toEqual(['a', 'f'])
+  })
+
+  it('keeps a tab nested under its folder across a restart', () => {
+    const prior = buildPriorState(
+      [makePriorFolder('f'), makePriorNode('a', 1, { parentId: 'f' })],
+      ['f'],
+    )
+    const result = rehydrate([makeFakeTab({ id: 1, index: 0 })], prior, makeIdGenerator('n'))
+
+    expect(result.state.nodesByWindow[DEFAULT_WINDOW_ID]?.['a']?.parentId).toBe('f')
+    expect(result.state.nodesByWindow[DEFAULT_WINDOW_ID]?.['f']?.childIds).toEqual(['a'])
+    expect(rootOrder(result.state)).toEqual(['f'])
+  })
+
+  it('preserves nested folders with a tab in the inner folder', () => {
+    const prior = buildPriorState(
+      [
+        makePriorFolder('o'),
+        makePriorFolder('i', { parentId: 'o' }),
+        makePriorNode('a', 1, { parentId: 'i' }),
+      ],
+      ['o'],
+    )
+    const result = rehydrate([makeFakeTab({ id: 1, index: 0 })], prior, makeIdGenerator('n'))
+
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+    expect(bucket['o']?.childIds).toEqual(['i'])
+    expect(bucket['i']?.parentId).toBe('o')
+    expect(bucket['i']?.childIds).toEqual(['a'])
+    expect(bucket['a']?.parentId).toBe('i')
+    expect(rootOrder(result.state)).toEqual(['o'])
+  })
+
+  it('carries folders into the remapped window after a browser restart', () => {
+    // Prior state lived in window 5; after restart the tab reopens in window 9.
+    const prior = createEmptyState()
+    const folder = buildFolderNode('f', 5, P, 'folder-f')
+    const tab: TreeNode = {
+      id: 'a',
+      kind: 'tab',
+      tabId: 1,
+      windowId: 5,
+      url: 'https://example.com/a',
+      title: 'title-a',
+      parentId: 'f',
+      childIds: [],
+      collapsed: false,
+      pinned: false,
+      panelId: P,
+    }
+    prior.nodesByWindow[5] = { f: folder, a: tab }
+    prior.rootOrderByWindow[5] = { [P]: ['f'] }
+    prior.panelsByWindow[5] = [{ id: P, name: 'Tabs', icon: '📄', color: 'grey', windowId: 5 }]
+    prior.panelOrderByWindow[5] = [P]
+
+    const result = rehydrate(
+      [makeFakeTab({ id: 1, windowId: 9, index: 0 })],
+      prior,
+      makeIdGenerator('n'),
+    )
+
+    const bucket = result.state.nodesByWindow[9]!
+    expect(bucket['f']?.kind).toBe('folder')
+    expect(bucket['f']?.windowId).toBe(9)
+    expect(bucket['a']?.parentId).toBe('f')
+    expect(bucket['f']?.childIds).toEqual(['a'])
+    expect(rootOrder(result.state, 9)).toEqual(['f'])
+    expect(result.state.nodesByWindow[5]).toBeUndefined()
   })
 })

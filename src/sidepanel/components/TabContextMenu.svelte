@@ -7,11 +7,13 @@
     nodeId: NodeId
     nodePanelId: string
     nodePinned: boolean
+    nodeIsFolder: boolean
     hasCustomTitle: boolean
     panels: Panel[]
     x: number
     y: number
     onRename: () => void
+    onNewFolder: () => void
     onClose: () => void
   }
 
@@ -19,11 +21,13 @@
     nodeId,
     nodePanelId,
     nodePinned,
+    nodeIsFolder,
     hasCustomTitle,
     panels,
     x,
     y,
     onRename,
+    onNewFolder,
     onClose,
   }: Props = $props()
 
@@ -44,6 +48,11 @@
 
   function handleRename() {
     onRename()
+    onClose()
+  }
+
+  function handleNewFolder() {
+    onNewFolder()
     onClose()
   }
 
@@ -81,7 +90,7 @@
 >
   <button type="button" class="menu-item" role="menuitem" onclick={handleRename}>
     <span class="menu-icon">✎</span>
-    Rename
+    {nodeIsFolder ? 'Rename folder' : 'Rename'}
   </button>
   {#if hasCustomTitle}
     <button type="button" class="menu-item" role="menuitem" onclick={handleResetName}>
@@ -90,10 +99,16 @@
     </button>
   {/if}
   <div class="separator"></div>
-  <button type="button" class="menu-item" role="menuitem" onclick={handleTogglePin}>
-    <span class="menu-icon">{nodePinned ? '📍' : '📌'}</span>
-    {nodePinned ? 'Unpin tab' : 'Pin tab'}
+  <button type="button" class="menu-item" role="menuitem" onclick={handleNewFolder}>
+    <span class="menu-icon">📁</span>
+    New folder
   </button>
+  {#if !nodeIsFolder}
+    <button type="button" class="menu-item" role="menuitem" onclick={handleTogglePin}>
+      <span class="menu-icon">{nodePinned ? '📍' : '📌'}</span>
+      {nodePinned ? 'Unpin tab' : 'Pin tab'}
+    </button>
+  {/if}
   {#if otherPanels.length > 0}
     <div class="separator"></div>
     {#each otherPanels as panel (panel.id)}

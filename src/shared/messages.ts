@@ -23,6 +23,8 @@ export const MSG_MOVE_TO_PANEL = 'pinebery/move-to-panel' as const
 export const MSG_SET_ACTIVE_PANEL = 'pinebery/set-active-panel' as const
 export const MSG_TOGGLE_PIN = 'pinebery/toggle-pin' as const
 export const MSG_RENAME_TAB = 'pinebery/rename-tab' as const
+export const MSG_CREATE_FOLDER = 'pinebery/create-folder' as const
+export const MSG_CREATE_FOLDER_RESPONSE = 'pinebery/create-folder-response' as const
 
 export interface TreeUpdatedMessage {
   type: typeof MSG_TREE_UPDATED
@@ -115,6 +117,19 @@ export interface RenameTabMessage {
   customTitle: string | null
 }
 
+export interface CreateFolderMessage {
+  type: typeof MSG_CREATE_FOLDER
+  windowId: number
+  panelId: PanelId
+  parentId: NodeId | null
+  title: string
+}
+
+export interface CreateFolderResponse {
+  type: typeof MSG_CREATE_FOLDER_RESPONSE
+  nodeId: NodeId
+}
+
 export type PineberyMessage =
   | TreeUpdatedMessage
   | RequestTreeMessage
@@ -132,3 +147,5 @@ export type PineberyMessage =
   | SetActivePanelMessage
   | TogglePinMessage
   | RenameTabMessage
+  | CreateFolderMessage
+  | CreateFolderResponse

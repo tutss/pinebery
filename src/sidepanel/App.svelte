@@ -16,11 +16,12 @@
     moveNodeRequest,
     closeNodeRequest,
     getPanelsForCurrentWindow,
+    createFolderRequest,
   } from './stores/tree.svelte'
   import { filterRenderEntries, type FilteredEntry } from './filter'
   import { computeDropTarget, type RowLayout } from './dnd/indent-dnd'
   import { resolveGroupColor } from './group-colors'
-  import { DEFAULT_SETTINGS, type NodeId, type RenderEntry, type TreeNode } from '../shared/types'
+  import { DEFAULT_SETTINGS, isFolder, type NodeId, type RenderEntry, type TreeNode } from '../shared/types'
 
   const LIST_LEFT_OFFSET = 8
 
@@ -40,6 +41,7 @@
     nodeId: string
     nodePanelId: string
     nodePinned: boolean
+    nodeIsFolder: boolean
     hasCustomTitle: boolean
     x: number
     y: number
@@ -55,6 +57,7 @@
     nodeId: string,
     nodePanelId: string,
     nodePinned: boolean,
+    nodeIsFolder: boolean,
     hasCustomTitle: boolean,
   ) {
     event.preventDefault()
@@ -62,10 +65,15 @@
       nodeId,
       nodePanelId,
       nodePinned,
+      nodeIsFolder,
       hasCustomTitle,
       x: event.clientX,
       y: event.clientY,
     }
+  }
+
+  async function handleNewFolder() {
+    await createFolderRequest(null)
   }
 
   function openRenamePopoverForNode(nodeId: string) {
@@ -321,14 +329,25 @@
 <main>
   <header>
     <h1>Pinebery</h1>
-    <button
-      type="button"
-      class="gear"
-      onclick={() => chrome.runtime.openOptionsPage()}
-      aria-label="settings"
-    >
-      ⚙
-    </button>
+    <div class="header-actions">
+      <button
+        type="button"
+        class="gear"
+        onclick={handleNewFolder}
+        aria-label="new folder"
+        title="New folder"
+      >
+        📁
+      </button>
+      <button
+        type="button"
+        class="gear"
+        onclick={() => chrome.runtime.openOptionsPage()}
+        aria-label="settings"
+      >
+        ⚙
+      </button>
+    </div>
   </header>
 
   {#if !treeStore.isReady}
@@ -373,6 +392,7 @@
                   entry.nodeId,
                   node.panelId,
                   node.pinned,
+                  isFolder(node),
                   node.customTitle !== undefined,
                 )}
             >
@@ -399,11 +419,13 @@
       nodeId={contextMenu.nodeId}
       nodePanelId={contextMenu.nodePanelId}
       nodePinned={contextMenu.nodePinned}
+      nodeIsFolder={contextMenu.nodeIsFolder}
       hasCustomTitle={contextMenu.hasCustomTitle}
       panels={getPanelsForCurrentWindow()}
       x={contextMenu.x}
       y={contextMenu.y}
       onRename={() => openRenamePopoverForNode(contextMenu!.nodeId)}
+      onNewFolder={handleNewFolder}
       onClose={() => (contextMenu = null)}
     />
   {/if}
@@ -442,6 +464,12 @@
     font-weight: 600;
     margin: 0;
     letter-spacing: 0.02em;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
   }
 
   .gear {

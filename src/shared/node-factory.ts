@@ -8,6 +8,7 @@ export function buildNodeFromTab(
 ): TreeNode {
   const node: TreeNode = {
     id: nodeId,
+    kind: 'tab',
     tabId: tab.id!,
     windowId: tab.windowId!,
     url: tab.url ?? tab.pendingUrl ?? '',
@@ -24,4 +25,27 @@ export function buildNodeFromTab(
   if (tab.audible !== undefined) node.audible = tab.audible
   if (tab.mutedInfo?.muted !== undefined) node.muted = tab.mutedInfo.muted
   return node
+}
+
+/**
+ * Builds a folder node — a virtual container with no backing Chrome tab. It
+ * lives in the same tree as tab nodes and can hold tabs or other folders.
+ */
+export function buildFolderNode(
+  nodeId: NodeId,
+  windowId: number,
+  panelId: PanelId,
+  title: string,
+): TreeNode {
+  return {
+    id: nodeId,
+    kind: 'folder',
+    windowId,
+    title,
+    parentId: null,
+    childIds: [],
+    collapsed: false,
+    pinned: false,
+    panelId,
+  }
 }
