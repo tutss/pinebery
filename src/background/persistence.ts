@@ -373,20 +373,28 @@ export function rehydrate(
 
     const rootChildren = childrenByParent.get(null) ?? []
 
-    // A root whose panel no longer exists would be stranded in rootOrderByWindow
-    // under a panel that never renders, hiding its tab. Reassign such roots and
-    // their whole subtree to an existing panel so the tabs stay visible.
+    // Every node must live in the same panel as its root ancestor: rendering
+    // walks the tree by childIds and ignores a descendant's own panelId, so a
+    // drifted panelId is invisible on screen yet makes the tab impossible to
+    // move between panels (moveToPanel short-circuits on the stale value). This
+    // drift happens when a tab is re-parented to an opener in another panel
+    // during rehydration. Propagate each root's panel down its whole subtree to
+    // restore the invariant, reassigning any root whose panel no longer exists
+    // to a valid one so its tabs stay visible.
     let reassignedRoots = 0
     for (const rootId of rootChildren) {
       const rootNode = bucket[rootId]!
-      if (rootNode.panelId === fallbackPanelId || validPanelIds.has(rootNode.panelId)) continue
-      reassignedRoots++
+      let rootPanel = rootNode.panelId
+      if (!validPanelIds.has(rootPanel)) {
+        rootPanel = fallbackPanelId
+        reassignedRoots++
+      }
       const subtreeStack: NodeId[] = [rootId]
       while (subtreeStack.length > 0) {
         const id = subtreeStack.pop()!
         const node = bucket[id]
         if (!node) continue
-        node.panelId = fallbackPanelId
+        node.panelId = rootPanel
         for (const childId of childrenByParent.get(id) ?? []) {
           subtreeStack.push(childId)
         }
