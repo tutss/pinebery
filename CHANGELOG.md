@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.4 - 2026-07-02
+
+### Bug fixes
+
+- allow moving nested tabs between panels after panel drift (#5) ([f7c8baf](https://github.com/tutss/pinebery/commit/f7c8baf589ce6a3385d5c2603eb824a8051a7487))
+
+### Other
+
+- Add folder node model and pure tree ops (phase 1) (#6) ([def2dbf](https://github.com/tutss/pinebery/commit/def2dbf53f6a3408850faa723e829ad09628b67b))
+
 ## v1.3.3 - 2026-06-06
 
 ### Bug fixes
