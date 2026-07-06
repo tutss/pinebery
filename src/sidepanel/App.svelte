@@ -17,6 +17,7 @@
     closeNodeRequest,
     getPanelsForCurrentWindow,
     createFolderRequest,
+    createTabRequest,
   } from './stores/tree.svelte'
   import { filterRenderEntries, type FilteredEntry } from './filter'
   import { computeDropTarget, type RowLayout } from './dnd/indent-dnd'
@@ -363,61 +364,66 @@
     <PinnedSection nodes={split.pinnedNodes} />
     <Filter value={filterQuery} onChange={(next) => (filterQuery = next)} />
 
-    {#if filteredEntries.length === 0}
-      <p class="status">
-        {filterQuery ? 'No matches.' : 'No tabs in this window.'}
-      </p>
-    {:else}
-      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-      <div
-        class="list"
-        bind:this={listEl}
-        ondragover={handleDragOver}
-        ondragleave={handleDragLeave}
-        ondrop={handleDrop}
-        onkeydown={handleListKeydown}
-        role="list"
-      >
-        <DropIndicator
-          visible={dropIndicator.visible}
-          topPx={dropIndicator.topPx}
-          depth={dropIndicator.depth}
-          indentPx={indentPx}
-          leftOffsetPx={LIST_LEFT_OFFSET}
-        />
-        {#each filteredEntries as { entry, matches } (entry.nodeId)}
-          {@const node = getNodeById(entry.nodeId)}
-          {#if node}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div
-              data-node-id={entry.nodeId}
-              data-depth={entry.depth}
-              oncontextmenu={(e) =>
-                handleTabContextMenu(
-                  e,
-                  entry.nodeId,
-                  node.panelId,
-                  node.pinned,
-                  isFolder(node),
-                  node.customTitle !== undefined,
-                )}
-            >
-              <TabRow
-                {node}
-                depth={entry.depth}
-                {matches}
-                groupColor={groupColorForNode(node)}
-                isActive={node.tabId === treeStore.activeTabId}
-                isDropParent={dropIndicator.visible &&
-                  dropIndicator.prospectiveParentId === entry.nodeId}
-                onDragStart={handleRowDragStart}
-                onDragEnd={handleRowDragEnd}
-              />
-            </div>
-          {/if}
-        {/each}
-      </div>
-    {/if}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div
+      class="list"
+      bind:this={listEl}
+      ondragover={handleDragOver}
+      ondragleave={handleDragLeave}
+      ondrop={handleDrop}
+      onkeydown={handleListKeydown}
+      role="list"
+    >
+      <DropIndicator
+        visible={dropIndicator.visible}
+        topPx={dropIndicator.topPx}
+        depth={dropIndicator.depth}
+        indentPx={indentPx}
+        leftOffsetPx={LIST_LEFT_OFFSET}
+      />
+      {#if filteredEntries.length === 0}
+        <p class="status">
+          {filterQuery ? 'No matches.' : 'No tabs in this window.'}
+        </p>
+      {/if}
+      {#each filteredEntries as { entry, matches } (entry.nodeId)}
+        {@const node = getNodeById(entry.nodeId)}
+        {#if node}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            data-node-id={entry.nodeId}
+            data-depth={entry.depth}
+            oncontextmenu={(e) =>
+              handleTabContextMenu(
+                e,
+                entry.nodeId,
+                node.panelId,
+                node.pinned,
+                isFolder(node),
+                node.customTitle !== undefined,
+              )}
+          >
+            <TabRow
+              {node}
+              depth={entry.depth}
+              {matches}
+              groupColor={groupColorForNode(node)}
+              isActive={node.tabId === treeStore.activeTabId}
+              isDropParent={dropIndicator.visible &&
+                dropIndicator.prospectiveParentId === entry.nodeId}
+              onDragStart={handleRowDragStart}
+              onDragEnd={handleRowDragEnd}
+            />
+          </div>
+        {/if}
+      {/each}
+      {#if !filterQuery}
+        <button type="button" class="new-tab-row" onclick={() => createTabRequest()}>
+          <span class="new-tab-plus" aria-hidden="true">＋</span>
+          New tab
+        </button>
+      {/if}
+    </div>
   {/if}
 
   {#if contextMenu}
@@ -513,5 +519,47 @@
     margin: 12px 12px;
     font-size: 12px;
     color: var(--fg-muted);
+  }
+
+  /* Ghost row after the last tab; left padding lines the ＋ up with root-tab
+     favicons (8px row inset + 14px chevron spacer + 6px gap). */
+  .new-tab-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: var(--row-padding-v) 8px;
+    padding-left: calc(8px + 14px + 6px);
+    border: none;
+    border-left: 3px solid transparent;
+    background: transparent;
+    color: var(--fg-muted);
+    font: inherit;
+    font-size: var(--row-font-size);
+    text-align: left;
+    cursor: pointer;
+    border-radius: 0 4px 4px 0;
+    user-select: none;
+  }
+
+  .new-tab-row:hover {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    color: var(--fg);
+  }
+
+  .new-tab-row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .new-tab-plus {
+    width: var(--favicon-size);
+    height: var(--favicon-size);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--row-font-size);
+    line-height: 1;
+    flex-shrink: 0;
   }
 </style>

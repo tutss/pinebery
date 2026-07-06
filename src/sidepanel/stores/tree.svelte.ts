@@ -134,6 +134,20 @@ export function activateTab(nodeId: NodeId): void {
   sendMsg({ type: MSG_ACTIVATE_TAB, nodeId })
 }
 
+/**
+ * Open a blank new tab in this window. Placement into the tree is handled by
+ * the background's `onCreated` listener, which classifies the tab as blank and
+ * applies the `newTabBlank` setting within the active panel.
+ */
+export async function createTabRequest(): Promise<void> {
+  if (treeStore.currentWindowId === null) return
+  try {
+    await chrome.tabs.create({ windowId: treeStore.currentWindowId })
+  } catch (error) {
+    console.warn('pinebery: failed to create tab', error)
+  }
+}
+
 export function closeNodeRequest(nodeId: NodeId, mode: CloseParentBehavior): void {
   sendMsg({ type: MSG_CLOSE_NODE, nodeId, mode })
 }

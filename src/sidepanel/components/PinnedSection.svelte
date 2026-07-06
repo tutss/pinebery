@@ -39,8 +39,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: var(--pinned-tile-size);
+    height: var(--pinned-tile-size);
     padding: 4px;
     border: none;
     border-radius: 4px;
@@ -59,8 +59,8 @@
   }
 
   .tile :global(.favicon) {
-    width: 16px;
-    height: 16px;
+    width: var(--pinned-favicon-size);
+    height: var(--pinned-favicon-size);
     border-radius: 2px;
   }
 

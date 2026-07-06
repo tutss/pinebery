@@ -37,6 +37,8 @@
   --row-font-size: 13px;
   --favicon-size: 16px;
   --indent-px: 16px;
+  --pinned-tile-size: 32px;
+  --pinned-favicon-size: 20px;
   --tree-guide: color-mix(in srgb, var(--fg) 16%, transparent);
 }
 
@@ -45,6 +47,8 @@
   --row-font-size: 11px;
   --favicon-size: 14px;
   --indent-px: 12px;
+  --pinned-tile-size: 24px;
+  --pinned-favicon-size: 16px;
 }
 
 * {
