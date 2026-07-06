@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte'
-  import type { TreeNode } from '../../shared/types'
+  import { isFolder, type TreeNode } from '../../shared/types'
   import { renameTabRequest } from '../stores/tree.svelte'
 
   interface Props {
@@ -17,9 +17,16 @@
 
   const originalTitle = $derived(node.title)
   const hasCustomTitle = $derived(node.customTitle !== undefined)
+  const nodeIsFolder = $derived(isFolder(node))
 
   function commit() {
     const trimmed = nameValue.trim()
+    // A folder's base title is just its creation-time name, so there is no
+    // meaningful "original" to restore — an empty input keeps the current name.
+    if (trimmed === '' && nodeIsFolder) {
+      onClose()
+      return
+    }
     const next: string | null = trimmed === '' || trimmed === originalTitle ? null : trimmed
     const current = node.customTitle ?? null
     if (next !== current) {
@@ -74,23 +81,23 @@
   style="top: {topPx}px; left: {leftPx}px"
   onkeydown={handleKeydown}
   role="dialog"
-  aria-label="Rename tab"
+  aria-label={nodeIsFolder ? 'Rename folder' : 'Rename tab'}
   tabindex="-1"
 >
   <label class="field">
-    <span class="label">Tab name</span>
+    <span class="label">{nodeIsFolder ? 'Folder name' : 'Tab name'}</span>
     <input
       bind:this={inputEl}
       type="text"
       bind:value={nameValue}
       placeholder={originalTitle}
     />
-    <span class="hint">Enter saves. Empty restores the original.</span>
+    <span class="hint">{nodeIsFolder ? 'Enter saves.' : 'Enter saves. Empty restores the original.'}</span>
   </label>
 
   <div class="actions">
     <button type="button" class="btn" onclick={cancel}>Cancel</button>
-    {#if hasCustomTitle}
+    {#if hasCustomTitle && !nodeIsFolder}
       <button type="button" class="btn" onclick={resetToOriginal}>Reset</button>
     {/if}
     <button type="button" class="btn primary" onclick={commit}>Save</button>

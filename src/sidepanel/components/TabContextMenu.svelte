@@ -92,7 +92,7 @@
     <span class="menu-icon">✎</span>
     {nodeIsFolder ? 'Rename folder' : 'Rename'}
   </button>
-  {#if hasCustomTitle}
+  {#if hasCustomTitle && !nodeIsFolder}
     <button type="button" class="menu-item" role="menuitem" onclick={handleResetName}>
       <span class="menu-icon">↺</span>
       Reset name
