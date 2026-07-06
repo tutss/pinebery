@@ -508,12 +508,12 @@ describe('rehydrate panel persistence across window ID change', () => {
     expect(rootOrder(result.state, DEFAULT_WINDOW_ID, P)).toContain('root')
   })
 
-  it('aligns a tab re-parented across panels with its new root panel', () => {
-    // "work-root" lives in panel "work"; "child" used to be opened from it but
-    // was moved to panel P (so it is a root in P with panelId P). Chrome still
-    // records child.openerTabId === work-root's tab. On rehydrate the surviving
-    // opener re-nests child under work-root, and its panelId must follow the
-    // tree into "work" — otherwise the tab can no longer be moved out of it.
+  it('keeps a prior root in its own panel even when its opener survives', () => {
+    // "child" was deliberately placed as a root in panel P (a blank new tab
+    // opened while P was active, or a tab moved/promoted there), but Chrome
+    // still records child.openerTabId === work-root's tab for the tab's whole
+    // lifetime. A service worker restart must not re-nest it under work-root
+    // and drag it into the "work" panel.
     const workRoot = makePriorNode('work-root', 100, { panelId: 'work' })
     const child = makePriorNode('child', 101, { panelId: P })
     const prior = buildPriorState([workRoot, child], ['child'])
@@ -523,6 +523,36 @@ describe('rehydrate panel persistence across window ID change', () => {
     ]
     prior.panelOrderByWindow[DEFAULT_WINDOW_ID] = [P, 'work']
     prior.rootOrderByWindow[DEFAULT_WINDOW_ID] = { [P]: ['child'], work: ['work-root'] }
+
+    const tabs = [
+      makeFakeTab({ id: 100, index: 0 }),
+      makeFakeTab({ id: 101, index: 1, openerTabId: 100 }),
+    ]
+    const result = rehydrate(tabs, prior, makeIdGenerator('n'))
+    const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
+
+    expect(bucket['child']!.parentId).toBeNull()
+    expect(bucket['child']!.panelId).toBe(P)
+    expect(rootOrder(result.state, DEFAULT_WINDOW_ID, P)).toEqual(['child'])
+    expect(rootOrder(result.state, DEFAULT_WINDOW_ID, 'work')).toEqual(['work-root'])
+  })
+
+  it('aligns a tab re-parented across panels with its new root panel', () => {
+    // "child" lived under "gone" in panel P, but gone's tab no longer exists,
+    // so the prior parent link is lost and rehydrate falls back to Chrome's
+    // openerTabId, which points at "work-root" in panel "work". The re-nested
+    // child's panelId must follow the tree into "work" — otherwise the tab
+    // can no longer be moved out of it.
+    const workRoot = makePriorNode('work-root', 100, { panelId: 'work' })
+    const gone = makePriorNode('gone', 999, { panelId: P, childIds: ['child'] })
+    const child = makePriorNode('child', 101, { panelId: P, parentId: 'gone' })
+    const prior = buildPriorState([workRoot, gone, child], ['gone'])
+    prior.panelsByWindow[DEFAULT_WINDOW_ID] = [
+      { id: P, name: 'Tabs', icon: '📄', color: 'grey', windowId: DEFAULT_WINDOW_ID },
+      { id: 'work', name: 'Work', icon: '💼', color: 'red', windowId: DEFAULT_WINDOW_ID },
+    ]
+    prior.panelOrderByWindow[DEFAULT_WINDOW_ID] = [P, 'work']
+    prior.rootOrderByWindow[DEFAULT_WINDOW_ID] = { [P]: ['gone'], work: ['work-root'] }
 
     const tabs = [
       makeFakeTab({ id: 100, index: 0 }),
