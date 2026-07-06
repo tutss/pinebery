@@ -211,9 +211,15 @@
     )
   })
 
+  // Row layouts and drag cursor positions are both expressed in the list's
+  // content coordinates (scroll-adjusted). The drop indicator is absolutely
+  // positioned inside the scrolling list, so its `top` lives in content
+  // space too — using viewport-relative offsets here made the indicator
+  // drift by scrollTop whenever the list was scrolled.
   function collectRowLayouts(): RowLayout[] {
     if (!listEl) return []
     const listRect = listEl.getBoundingClientRect()
+    const scrollTop = listEl.scrollTop
     const rows: RowLayout[] = []
     const children = listEl.querySelectorAll<HTMLElement>('[data-node-id]')
     children.forEach((child) => {
@@ -223,8 +229,8 @@
       if (!nodeId) return
       rows.push({
         nodeId,
-        topPx: rect.top - listRect.top,
-        bottomPx: rect.bottom - listRect.top,
+        topPx: rect.top - listRect.top + scrollTop,
+        bottomPx: rect.bottom - listRect.top + scrollTop,
         depth: Number(depthStr ?? '0'),
       })
     })
@@ -255,7 +261,7 @@
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
 
     const listRect = listEl.getBoundingClientRect()
-    const cursorY = event.clientY - listRect.top
+    const cursorY = event.clientY - listRect.top + listEl.scrollTop
     const cursorX = event.clientX - listRect.left - LIST_LEFT_OFFSET
 
     const target = computeDropTarget({
@@ -301,7 +307,7 @@
     event.preventDefault()
 
     const listRect = listEl.getBoundingClientRect()
-    const cursorY = event.clientY - listRect.top
+    const cursorY = event.clientY - listRect.top + listEl.scrollTop
     const cursorX = event.clientX - listRect.left - LIST_LEFT_OFFSET
 
     const target = computeDropTarget({
