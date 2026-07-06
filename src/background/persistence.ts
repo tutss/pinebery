@@ -340,7 +340,14 @@ export function rehydrate(
     }
 
     if (resolvedParentId === null && tab.openerTabId !== undefined) {
-      if (prior || !isSessionContinuation) {
+      // A prior node with parentId === null is a deliberate root (blank new
+      // tab, promoted, or moved to another panel). Chrome keeps openerTabId
+      // for the tab's whole lifetime, so falling back to it here would
+      // re-nest such a tab under its opener — and drag it into the opener's
+      // panel — on every service worker restart. Only fall back when the
+      // prior parent was genuinely lost or there is no prior tree at all.
+      const priorSaysRoot = prior !== undefined && prior.parentId === null
+      if (!priorSaysRoot && (prior || !isSessionContinuation)) {
         const openerNodeId = nodeIdByTabId.get(tab.openerTabId)
         if (openerNodeId && nextState.nodesByWindow[tab.windowId]?.[openerNodeId]) {
           resolvedParentId = openerNodeId
