@@ -106,7 +106,6 @@ export function rehydrate(
 
   const priorByCurrentTab = new Map<number, TreeNode>()
   const claimedPriorIds = new Set<NodeId>()
-  const tabIdMatchedTabIds = new Set<number>()
 
   let tabIdMatched = 0
   for (const tab of currentTabs) {
@@ -115,7 +114,6 @@ export function rehydrate(
     if (prior) {
       priorByCurrentTab.set(tab.id, prior)
       claimedPriorIds.add(prior.id)
-      tabIdMatchedTabIds.add(tab.id)
       tabIdMatched++
     }
   }
@@ -192,13 +190,13 @@ export function rehydrate(
     const nodeId = nodeIdByTabId.get(tab.id)!
     const prior = priorByCurrentTab.get(tab.id)
 
-    const isTabIdMatch = tabIdMatchedTabIds.has(tab.id)
-    const carriedCustomTitle =
-      isTabIdMatch && prior?.customTitle !== undefined ? prior.customTitle : undefined
+    // Carry customTitle for URL-fallback matches too, not just tabId matches:
+    // tab ids change on every browser restart, so restart re-attachment always
+    // goes through the URL fallback and would otherwise revert every rename.
     const overrides: { collapsed: boolean; customTitle?: string } = {
       collapsed: prior?.collapsed ?? false,
     }
-    if (carriedCustomTitle !== undefined) overrides.customTitle = carriedCustomTitle
+    if (prior?.customTitle !== undefined) overrides.customTitle = prior.customTitle
 
     const node = buildNodeFromTab(
       tab,
