@@ -625,7 +625,7 @@ describe('rehydrate customTitle', () => {
     expect(bucket['p1']?.customTitle).toBe('My label')
   })
 
-  it('drops customTitle when prior matches by URL fallback only', () => {
+  it('carries customTitle forward when prior matches by URL fallback (browser restart)', () => {
     const prior = buildPriorState(
       [
         makePriorNode('p1', 100, {
@@ -640,7 +640,7 @@ describe('rehydrate customTitle', () => {
     ]
     const result = rehydrate(tabs, prior, makeIdGenerator('n'))
     const bucket = result.state.nodesByWindow[DEFAULT_WINDOW_ID]!
-    expect(bucket['p1']?.customTitle).toBeUndefined()
+    expect(bucket['p1']?.customTitle).toBe('My label')
   })
 
   it('leaves customTitle unset when prior had none and match is by tabId', () => {
