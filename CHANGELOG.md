@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.5 - 2026-07-08
+
+### Bug fixes
+
+- keep custom tab names across browser restarts (#11) ([2a986d9](https://github.com/tutss/pinebery/commit/2a986d99c313305b2dae7c6c18a01e50781409a6))
+- anchor drag-drop indicator to scroll content, not viewport (#9) ([3cdc9b5](https://github.com/tutss/pinebery/commit/3cdc9b5592c07841fa61eb64e6fb26f58c83a002))
+- drop redundant Reset name affordances for folders (#8) ([75eee50](https://github.com/tutss/pinebery/commit/75eee508f710916fc2c78dc664b9d187783149f0))
+- don't re-nest deliberate root tabs under their opener on rehydrate (#7) ([8b5680d](https://github.com/tutss/pinebery/commit/8b5680dfa1d7c0ab0cc2d4e5c77a0bc85e386b87))
+
+### Other
+
+- Add "New tab" ghost row and bigger pinned tiles (#10) ([115db4a](https://github.com/tutss/pinebery/commit/115db4a995501bde0e16a69d2d2b1ed1cdf86bdd))
+
 ## v1.3.4 - 2026-07-02
 
 ### Bug fixes
